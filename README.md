@@ -1,7 +1,7 @@
-# php_sql_named_bind
+# eBindSQL
 named parameter binding for SQL in PHP
 
-Welcome to php_sql_named_bind!
+Welcome to eBindSQL!
 ===================
 
 This is a named parameter binding helper for generic SQL written in PHP.  It should be easy to use or customize.
@@ -28,7 +28,7 @@ $params = Array(
     '{lname_cond}' => '%mith',
     '{ID_cond}' => '2c92c0f95ccf2766015cd11c48a93690',
 );
-$query_bound = DbEnhancedBind($sql, $params);
+$query_bound = sql_ebind($sql, $params);
 $this->db->query($query_bound['sql'], $query_bound['params']);
 var_dump($query_bound); echo PHP_EOL;
 ```
@@ -65,7 +65,7 @@ $params = Array(
     '{wherecond_01}' => '2c92c0f95ccf2766015cd11c48a93690',
     '{wherecond_02}' => '%mith',
 );
-$query_bound = DbEnhancedBind($sql, $params);
+$query_bound = sql_ebind($sql, $params);
 $this->db->query($query_bound['sql'], $query_bound['params']);
 var_dump($query_bound); echo PHP_EOL;
 ```
@@ -102,7 +102,7 @@ $params = Array(
     '{wherecond_01}' => '2c92c0f95ccf2766015cd11c48a93690',
     '{wherecond_02}' => Array(3, 5, 7),
 );
-$query_bound = DbEnhancedBind($sql, $params);
+$query_bound = sql_ebind($sql, $params);
 $this->db->query($query_bound['sql'], $query_bound['params']);
 var_dump($query_bound); echo PHP_EOL;
 ```
@@ -130,7 +130,7 @@ $params = Array(
     '{{table_name}}'  => 'dbo.table_name_01',
     '{wherecond_01}'  => 1729
 );
-$query_bound = DbEnhancedBind($sql, $params);
+$query_bound = sql_ebind($sql, $params);
 $this->db->query($query_bound['sql'], $query_bound['params']);
 var_dump($query_bound); echo PHP_EOL;
 ```
@@ -182,7 +182,7 @@ $sql_params['{{id_col}}'] = 'ID';
 $sql_params['{ID}'] = 9;
 
 // bind names
-$query_bound = DbEnhancedBind($sql, $sql_params);
+$query_bound = sql_ebind($sql, $sql_params);
 $this->db->query($query_bound['sql'], $query_bound['params']);
 var_dump($query_bound); echo PHP_EOL;
 ```
@@ -247,7 +247,7 @@ function schema_remove($db, $schema, $t = false) {
             '{schema_name}' => $schema,
             '{type_desc}' => $type_desc,
         );
-        $bound = DBEnhancedBind($sql,$sql_params);
+        $bound = sql_ebind($sql,$sql_params);
         $db_res = $db->query($bound['sql'], $bound['params']);
         if ($t) {
             var_dump($bound); echo PHP_EOL;
@@ -272,7 +272,7 @@ function schema_remove($db, $schema, $t = false) {
     }
 
     // DROP the now empty schema
-    $bound = DBEnhancedBind(
+    $bound = sql_ebind(
         'DROP SCHEMA {{schema_name}}',
         Array('{{schema_name}}' => $schema)
     );
@@ -291,4 +291,3 @@ $success = schema_remove('db_handle_stub', 'dbo_new', true);
 
 var_dump($query_bound); echo PHP_EOL;
 ```
-
