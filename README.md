@@ -12,7 +12,7 @@ query("SELECT id, lname, fname FROM people where lname='?'")
 ```
 We can use:
 ```
-query("SELECT id, lname, fname FROM people where lname={name}")
+query("SELECT id, lname, fname FROM people where lname={:name}")
 ```
 
 Example, usage example for simple parameter:
@@ -26,7 +26,7 @@ $sql = implode(" \n", Array(
 
 $params = Array(
     '{:lname_cond}' => '%mith',
-    '{:ID_cond}' => '2c92c0f95ccf2766015cd11c48a93690',
+    '{:ID_cond}' => '4d7ab00ae2561cbc1a58a1ccbf0192cf',
 );
 $query_bound = sql_ebind($sql, $params);
 $this->db->query($query_bound['sql'], $query_bound['params']);
@@ -43,7 +43,7 @@ array(2) {
   'params' =>
   array(2) {
     [0] =>
-    string(32) "2c92c0f95ccf2766015cd11c48a93690"
+    string(32) "4d7ab00ae2561cbc1a58a1ccbf0192cf"
     [1] =>
     string(5) "%mith"
   }
@@ -53,16 +53,16 @@ array(2) {
 Example for structural parameter:
 ```php
 $sql = implode(" \n", Array(
-    "SELECT {{colname_01}}, lname, fname",
+    "SELECT {{:colname_01}}, lname, fname",
     "FROM dbo.table_name_01",
-    "WHERE ID = {wherecond_01}",
-    "  AND lname LIKE {wherecond_02}",
-    "ORDER BY {{colname_01}}",
+    "WHERE ID = {:wherecond_01}",
+    "  AND lname LIKE {:wherecond_02}",
+    "ORDER BY {{:colname_01}}",
 ));
 
 $params = Array(
     '{{:colname_01}}' => 'ID',
-    '{:wherecond_01}' => '2c92c0f95ccf2766015cd11c48a93690',
+    '{:wherecond_01}' => '4d7ab00ae2561cbc1a58a1ccbf0192cf',
     '{:wherecond_02}' => '%mith',
 );
 $query_bound = sql_ebind($sql, $params);
@@ -80,7 +80,7 @@ array(2) {
   'params' =>
   array(2) {
     [0] =>
-    string(32) "2c92c0f95ccf2766015cd11c48a93690"
+    string(32) "4d7ab00ae2561cbc1a58a1ccbf0192cf"
     [1] =>
     string(5) "%mith"
   }
@@ -99,7 +99,7 @@ $sql = implode(" \n", Array(
 $params = Array(
     '{{:field_name}}' => 'ID',
     '{{:table_name}}' => 'dbo.table_name_01',
-    '{:wherecond_01}' => '2c92c0f95ccf2766015cd11c48a93690',
+    '{:wherecond_01}' => '4d7ab00ae2561cbc1a58a1ccbf0192cf',
     '{:wherecond_02}' => Array(3, 5, 7),
 );
 $query_bound = sql_ebind($sql, $params);
@@ -113,7 +113,7 @@ Should give"
         FROM dbo.table_name_01
         WHERE ID = ?
           OR field_name_02 IN ( ?, ?, ? )",
-    "params":["2c92c0f95ccf2766015cd11c48a93690",3,5,7]
+    "params":["4d7ab00ae2561cbc1a58a1ccbf0192cf",3,5,7]
 }
 ```
 
