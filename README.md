@@ -7,11 +7,11 @@ Welcome to eBindSQL!
 This is a named parameter binding helper for generic SQL written in PHP.  It should be easy to use or customize.
 
 Where this was normal:
-```
+```php
 query("SELECT id, lname, fname FROM people where lname='?'")
 ```
 We can use:
-```
+```php
 query("SELECT id, lname, fname FROM people where lname={:name}")
 ```
 
@@ -106,7 +106,7 @@ $query_bound = sql_ebind($sql, $params);
 $this->db->query($query_bound['sql'], $query_bound['params']);
 var_dump($query_bound); echo PHP_EOL;
 ```
-Should give"
+Should give:
 ```
 {
     "sql":"SELECT ID
