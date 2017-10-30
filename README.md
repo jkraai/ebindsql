@@ -17,13 +17,13 @@ The problems to be solved are:
 
 The first makes query maintenance tedious and error-prone when doing even the simplest refactoring, including shifting clauses and adding or removing conditions.
 
-By using named parameters, the order can be rearranged without breaking the association, flexibility is gained and the ordinal correspondence requirement is shed at the expanse of having to name the parameters.  These params are delimited with curly braces.  {:normal_param_name}  (The "{:" was kept as a nod to older systems.)  Case sensitive identifiers follow a convention of a letter followed by any number of letters, numbers, '-', and '_'.
+By using named parameters, the order can be rearranged without breaking the association, flexibility is gained and the ordinal correspondence requirement is shed at the expanse of having to name the parameters.  These params are delimited with curly braces.  {:normal_param_name}  (The "{:" was kept as a nod to older systems.)  Case sensitive identifiers follow a convention of a letter followed by any number of letters, numbers, '-' dash, and '_' underscore.
 
 Two capabilities have been added. 
 *  Normally a statement to be prepared can't have database, schema, table, or column names be replaceable.  This allows that flexibility by delimiting those params with double curly braces. {{:abnormal_param_name}}
 *  Substitution loops are put inside while loops that repeat until no further replacements have been made.
 
-Runaway substitutions resulting from circular substitutions are caught with a loop counter.  It's cheaper in lines of code, readability, and maintenance than generating and validating a digraph.  Anyone who wishes to fork and digraph is most welcome to do so!  I could probably learn good things from reading the code.
+Runaway behavior resulting from circular substitutions are caught with a loop counter.  It's cheaper in lines of code, readability, and maintenance than generating and validating a digraph.  Anyone who wishes to fork and digraph is most welcome to do so!  I could probably learn good things from reading the code.
 
 These new capabilities shouldn't introduce new exposures to SQL injection attacks as statements still have to successfully make it through quoting and prepare mechanisms.
 
