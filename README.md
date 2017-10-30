@@ -2,13 +2,20 @@
 Enhanced named binding for SQL
 
 Welcome to eBindSQL!
-===================
+---------------
 
-This is a named parameter binding helper for generic SQL with PHP, js, and Python implementations so far.  It was inspired by https://stackoverflow.com/a/11594332/7307768, and should be easy to use or customize.  The examples are Transact SQL, but the code will work out-of-the-box for other SQL dialects.  This is a simple, iterated string substitution technique that is published for writing SQL queries.  No checks are made to ensure that the output is valid SQL.  This technique could be used out-of-the-box for many kinds of non-SQL code generation.
+This is a named parameter binding helper for generic SQL with PHP, js, and Python implementations so far.  The implementation was inspired by https://stackoverflow.com/a/11594332/7307768, and should be easy to use or customize.  
 
-The problem to be solved is that when preparing SQL statements for execution, the '?' placeholders must have ordinal positional correspondence with a passed array of values to substitute for each '?'.  One-to-one correspondence and in the exact order.
+The examples are Transact SQL, but the code will work out-of-the-box for other SQL dialects.  This is a simple, iterated string substitution technique that is published for writing SQL queries.  No checks are made to ensure that the output is valid SQL.  
 
-This makes query maintenance tedious and error-prone when doing even the simplest refactoring, including shifting clauses and adding or removing conditions.
+This technique could be used out-of-the-box for many kinds of non-SQL code generation.
+
+The problems to be solved are:
+* when preparing SQL statements for execution, the '?' placeholders must have ordinal positional correspondence with a passed array of values to substitute for each '?'.  One-to-one correspondence and in the exact order
+* '?' placeholders can only stand in for values, not column or table names
+* traditional implementations are simple and flat and are expressively and functionally limiting
+
+The first makes query maintenance tedious and error-prone when doing even the simplest refactoring, including shifting clauses and adding or removing conditions.
 
 By using named parameters, the order can be rearranged without breaking the association, flexibility is gained and the ordinal correspondence requirement is shed at the expanse of having to name the parameters.  These params are delimited with curly braces.  {:normal_param_name}  (The "{:" was kept as a nod to older systems.)  Case sensitive identifiers follow a convention of a letter followed by any number of letters, numbers, '-', and '_'.
 
@@ -16,9 +23,16 @@ Two capabilities have been added.
 *  Normally a statement to be prepared can't have database, schema, table, or column names be replaceable.  This allows that flexibility by delimiting those params with double curly braces. {{:abnormal_param_name}}
 *  Substitution loops are put inside while loops that repeat until no further replacements have been made.
 
+Runaway substitutions resulting from circular substitutions are caught with a loop counter.  It's cheaper in lines of code, readability, and maintenance than generating and validating a digraph.  Anyone who wishes to fork and digraph is most welcome to do so!  I could probably learn good things from reading the code.
+
 These new capabilities shouldn't introduce new exposures to SQL injection attacks as statements still have to successfully make it through quoting and prepare mechanisms.
 
-A simple example.  Where this was normal:
+Advanced users who find this technique too limiting should look into tools like [GNU M4](https://www.gnu.org/software/m4/m4.html), writing a little language, or creating the next Favia++# big language.
+
+Documentation by Example
+---------------
+### A simple substitution example
+Where this was normal
 ```php
 query("SELECT id, lname, fname FROM people where lname='?'")
 ```
@@ -28,7 +42,7 @@ query("SELECT id, lname, fname FROM people where lname={:name}")
 ```
 
 
-Usage example for simple parameters:
+### Usage example for simple parameters
 ```php
 $sql = implode(" \n", Array(
     "SELECT ID, lname, fname",
@@ -67,7 +81,7 @@ array(2) {
 ```
 
 
-Example for structural parameter and multiple passes through the replacement loop:
+### Structural parameter and replacement looping:
 ```php
 $sql = implode(" \n", Array(
     "SELECT {{:colname_01}}, lname, fname",
@@ -110,7 +124,7 @@ array(2) {
 In the above example, note ```{{:colname_01_PrimaryKey}} -> {{:colname_01}} -> 'ID'```
 
 
-Example with the number of parameters unknown ahead of time:
+### Number of parameters unknown ahead of time
 ```php
 $sql = implode(" \n", Array(
     "SELECT {{:field_name}}",
@@ -141,7 +155,7 @@ Should give:
 ```
 
 
-Example for multiple columns:
+### Multiple columns
 ```php
 $sql = implode(" \n", Array(
     "SELECT {{:field_names}}",
@@ -176,7 +190,7 @@ array(2) {
 ```
 
 
-Example for general SELECT query builder:
+### General SELECT query builder
 ```php
 // note that replacement values contain replacement keys
 // that get replaced inside a do{} loop
@@ -226,12 +240,13 @@ array(2) {
 ```
 
 
-Example of a function to remove schema in TSQL:
+### Function to remove schema in TSQL:
 ```php
 /*
  * drop_schema
  *
- * NOT FULLY TESTED.  Please let author know how this works :-)
+ * NOT FULLY TESTED.  Please let author know how this bold function 
+ * works out for you :-)
  *
  * drop all objects from a mssql schema, then drop the schema
  *
@@ -244,9 +259,11 @@ Example of a function to remove schema in TSQL:
 function schema_remove($db, $schema, $t = false) {
 
     // non-empty schemas can't be dropped
+    // let's empty the given schema
 
     // what types are we going after?
-    // not a comprehensive list
+    // not a comprehensive list of types
+    // probably engine version dependent
     $type_names = Array(
         'SEQUENCE_OBJECT'                  => 'SEQUENCE',
         'SQL_INLINE_TABLE_VALUED_FUNCTION' => 'FUNCTION',
@@ -316,7 +333,7 @@ function schema_remove($db, $schema, $t = false) {
 $success = schema_remove('db_handle_stub', 'dbo_new', true);
 ```
 
-TODO - Need contributor examples:
+TODO:  Need contributor examples:
 * Easy
     * JOINs
     * subselects
@@ -326,4 +343,3 @@ TODO - Need contributor examples:
     * bad data hunter
     * a table->CRUD generator
     * relational model->CRUD generator
-
