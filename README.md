@@ -14,13 +14,17 @@ These placeholders must have ordinal positional correspondence with an array of 
 
 This makes query maintenance painful and error-prone when doing things like shifting clauses and adding conditions.
 
-By using named parameters, the order can be rearranged without breaking the association, we gain flexibility and shed the ordinal correspondence requirement at the expanse of having to name the parameters.  These params are delimited with curly braces.  {:normal_param_name}  The "{:" was kept as a nod to older systems.  Identifiers follow the old rule of letter followed by any number of letters, numbers, '-', and '_'.
+By using named parameters, the order can be rearranged without breaking the association, we gain flexibility and shed the ordinal correspondence requirement at the expanse of having to name the parameters.  These params are delimited with curly braces.  {:normal_param_name}  The "{:" was kept as a nod to older systems.  Identifiers follow the old convention of letter followed by any number of letters, numbers, '-', and '_'.
 
-Another feature was added.  Normally we can't have database, schema, table, or column names be replaceable.  This function allows that flexibility by delimiting those params with doubled curly braces. {{:abnormal_param_name}}
+Two capabilities have been added.  
 
-This new capability shouldn't introduce new exposure to SQL injection since statements still have to successfully make it through quoting and prepare mechanisms.
+First:  The substitution loop is put inside a while loop that repeats until no replacements have been made.
 
-Where this was normal:
+Second:  Normally a prepared query can't have database, schema, table, or column names be replaceable.  This allows that flexibility by delimiting those params with double curly braces. {{:abnormal_param_name}}
+
+These new capabilities shouldn't introduce new exposures to SQL injection attacks as statements still have to successfully make it through quoting and prepare mechanisms.
+
+A simple example.  Where this was normal:
 ```php
 query("SELECT id, lname, fname FROM people where lname='?'")
 ```
@@ -29,7 +33,8 @@ We can use:
 query("SELECT id, lname, fname FROM people where lname={:name}")
 ```
 
-Example, usage example for simple parameter:
+
+Usage example for simple parameter:
 ```php
 $sql = implode(" \n", Array(
     "SELECT ID, lname, fname",
@@ -43,8 +48,11 @@ $params = Array(
     '{:ID_cond}' => '4d7ab00ae2561cbc1a58a1ccbf0192cf',
 );
 $query_bound = sql_ebind($sql, $params);
-$this->db->query($query_bound['sql'], $query_bound['params']);
 var_dump($query_bound); echo PHP_EOL;
+$this->db->query(
+    $query_bound['sql'], 
+    $query_bound['params']
+);
 ```
 should give 
 ```
@@ -64,24 +72,28 @@ array(2) {
 }
 ```
 
-Example for structural parameter:
+
+Example for structural parameter and multiple passes through the replacement loop:
 ```php
 $sql = implode(" \n", Array(
     "SELECT {{:colname_01}}, lname, fname",
     "FROM dbo.table_name_01",
     "WHERE ID = {:wherecond_01}",
     "  AND lname LIKE {:wherecond_02}",
-    "ORDER BY {{:colname_01}}",
+    "ORDER BY {{:colname_01_PrimaryKey}}",
 ));
-
 $params = Array(
     '{{:colname_01}}' => 'ID',
+    '{{:colname_01_PrimaryKey}}' => '{{:colname_01}}',
     '{:wherecond_01}' => '4d7ab00ae2561cbc1a58a1ccbf0192cf',
     '{:wherecond_02}' => '%mith',
 );
 $query_bound = sql_ebind($sql, $params);
-$this->db->query($query_bound['sql'], $query_bound['params']);
 var_dump($query_bound); echo PHP_EOL;
+$this->db->query(
+    $query_bound['sql'], 
+    $query_bound['params']
+);
 ```
 should give 
 ```
@@ -100,6 +112,8 @@ array(2) {
   }
 }
 ```
+In the above example, note {{:colname_01_PrimaryKey}} -> {{:colname_01}} -> 'ID'
+
 
 Example with the number of parameters unknown ahead of time:
 ```php
@@ -117,8 +131,8 @@ $params = Array(
     '{:wherecond_02}' => Array(3, 5, 7),
 );
 $query_bound = sql_ebind($sql, $params);
-$this->db->query($query_bound['sql'], $query_bound['params']);
 var_dump($query_bound); echo PHP_EOL;
+$this->db->query($query_bound['sql'], $query_bound['params']);
 ```
 Should give:
 ```
@@ -131,12 +145,14 @@ Should give:
 }
 ```
 
+
 Example for multiple columns:
 ```php
 $sql = implode(" \n", Array(
     "SELECT {{:field_names}}",
     "FROM {{:table_name}}",
     "WHERE {{:id_field_name}} = {:wherecond_01}",
+    "ORDER BY {{:field_names}",
 ));
 $params = Array(
     '{{:field_names}}' => 'col1, col2, col3',
@@ -145,10 +161,9 @@ $params = Array(
     '{:wherecond_01}'  => 1729
 );
 $query_bound = sql_ebind($sql, $params);
-$this->db->query($query_bound['sql'], $query_bound['params']);
 var_dump($query_bound); echo PHP_EOL;
+$this->db->query($query_bound['sql'], $query_bound['params']);
 ```
-
 should give:
 ```
 array(2) {
@@ -163,6 +178,7 @@ array(2) {
   }
 }
 ```
+
 
 Example for general SELECT query builder:
 ```php
@@ -197,10 +213,9 @@ $sql_params['{:ID}'] = 9;
 
 // bind names
 $query_bound = sql_ebind($sql, $sql_params);
-$this->db->query($query_bound['sql'], $query_bound['params']);
 var_dump($query_bound); echo PHP_EOL;
+$this->db->query($query_bound['sql'], $query_bound['params']);
 ```
-
 should give:
 ```
 array(2) {
@@ -213,6 +228,7 @@ array(2) {
   }
 }
 ```
+
 
 Example of a function to remove schema in TSQL:
 ```php
@@ -302,11 +318,8 @@ function schema_remove($db, $schema, $t = false) {
 }
 
 $success = schema_remove('db_handle_stub', 'dbo_new', true);
-
-var_dump($query_bound); echo PHP_EOL;
 ```
 
 Examples TODO:  JOINs, subselects
 
 Bigger examples someday:  bad data hunter, a table->CRUD generator, relational model->CRUD generator
-
