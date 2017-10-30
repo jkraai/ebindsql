@@ -1,26 +1,20 @@
 # eBindSQL
-named parameter binding for SQL in PHP
+Enhanced named binding for SQL
 
 Welcome to eBindSQL!
 ===================
 
-This is a named parameter binding helper for generic SQL with PHP, js, and Python implementations so far.
+This is a named parameter binding helper for generic SQL with PHP, js, and Python implementations so far.  It was inspired by https://stackoverflow.com/a/11594332/7307768, and should be easy to use or customize.  The examples are Transact SQL, but the code will work out-of-the-box for other SQL dialects.  This is a simple, iterated string substitution technique that is published for writing SQL queries.  No checks are made to ensure that the output is valid SQL.  This technique could be used out-of-the-box for many kinds of non-SQL code generation.
 
-It should be easy to use or customize.
+The problem to be solved is that when preparing SQL statements for execution, the '?' placeholders must have ordinal positional correspondence with a passed array of values to substitute for each '?'.  One-to-one correspondence and in the exact order.
 
-Adapted heavily from https://stackoverflow.com/a/11594332/7307768
+This makes query maintenance tedious and error-prone when doing even the simplest refactoring, including shifting clauses and adding or removing conditions.
 
-These placeholders must have ordinal positional correspondence with an array of values to substibute for each '?'.  One-to-one correspondence and in the exact order.
+By using named parameters, the order can be rearranged without breaking the association, flexibility is gained and the ordinal correspondence requirement is shed at the expanse of having to name the parameters.  These params are delimited with curly braces.  {:normal_param_name}  (The "{:" was kept as a nod to older systems.)  Case sensitive identifiers follow a convention of a letter followed by any number of letters, numbers, '-', and '_'.
 
-This makes query maintenance painful and error-prone when doing things like shifting clauses and adding conditions.
-
-By using named parameters, the order can be rearranged without breaking the association, we gain flexibility and shed the ordinal correspondence requirement at the expanse of having to name the parameters.  These params are delimited with curly braces.  {:normal_param_name}  The "{:" was kept as a nod to older systems.  Identifiers follow the old convention of letter followed by any number of letters, numbers, '-', and '_'.
-
-Two capabilities have been added.  
-
-First:  The substitution loop is put inside a while loop that repeats until no replacements have been made.
-
-Second:  Normally a prepared query can't have database, schema, table, or column names be replaceable.  This allows that flexibility by delimiting those params with double curly braces. {{:abnormal_param_name}}
+Two capabilities have been added. 
+*  Normally a statement to be prepared can't have database, schema, table, or column names be replaceable.  This allows that flexibility by delimiting those params with double curly braces. {{:abnormal_param_name}}
+*  Substitution loops are put inside while loops that repeat until no further replacements have been made.
 
 These new capabilities shouldn't introduce new exposures to SQL injection attacks as statements still have to successfully make it through quoting and prepare mechanisms.
 
@@ -34,7 +28,7 @@ query("SELECT id, lname, fname FROM people where lname={:name}")
 ```
 
 
-Usage example for simple parameter:
+Usage example for simple parameters:
 ```php
 $sql = implode(" \n", Array(
     "SELECT ID, lname, fname",
@@ -101,7 +95,8 @@ array(2) {
   'sql' =>
   string(100) "SELECT ID, lname, fname
     FROM dbo.table_name_01
-    WHERE ID = ? AND lname LIKE ?
+    WHERE ID = ? 
+      AND lname LIKE ?
     ORDER BY ID"
   'params' =>
   array(2) {
@@ -112,7 +107,7 @@ array(2) {
   }
 }
 ```
-In the above example, note {{:colname_01_PrimaryKey}} -> {{:colname_01}} -> 'ID'
+In the above example, note ```{{:colname_01_PrimaryKey}} -> {{:colname_01}} -> 'ID'```
 
 
 Example with the number of parameters unknown ahead of time:
@@ -170,7 +165,8 @@ array(2) {
   'sql' =>
   string(69) "SELECT col1, col2, col3
     FROM dbo.table_name_01
-    WHERE col1 = ?"
+    WHERE col1 = ?
+    ORDER BY col1, col2, col3"
   'params' =>
   array(1) {
     [0] =>
@@ -235,7 +231,7 @@ Example of a function to remove schema in TSQL:
 /*
  * drop_schema
  *
- * UNTESTED
+ * NOT FULLY TESTED.  Please let author know how this works :-)
  *
  * drop all objects from a mssql schema, then drop the schema
  *
@@ -320,6 +316,14 @@ function schema_remove($db, $schema, $t = false) {
 $success = schema_remove('db_handle_stub', 'dbo_new', true);
 ```
 
-Examples TODO:  JOINs, subselects
+TODO - Need contributor examples:
+* Easy
+    * JOINs
+    * subselects
+* Medium
+    * given param array, generate SELECT, UPDATE, and DELETE 
+* Bigger
+    * bad data hunter
+    * a table->CRUD generator
+    * relational model->CRUD generator
 
-Bigger examples someday:  bad data hunter, a table->CRUD generator, relational model->CRUD generator
