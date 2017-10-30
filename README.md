@@ -247,7 +247,7 @@ function schema_remove($db, $schema, $t = false) {
             '{:schema_name}' => $schema,
             '{:type_desc}' => $type_desc,
         );
-        $bound = sql_ebind($sql,$sql_params);
+        $bound = sql_ebind($sql, $sql_params);
         $db_res = $db->query($bound['sql'], $bound['params']);
         if ($t) {
             var_dump($bound); echo PHP_EOL;

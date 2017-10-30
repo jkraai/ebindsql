@@ -50,7 +50,7 @@ function sql_ebind($sql, $bind, $bind_marker = '?') {
     // iterate until no more double-curly-bracket expressions in $sql
     do {
         if ($repeat++ > $loop_limit) {
-            throw new Exception(__FUNCTION__ . ' repeat limit reached, check params');
+            throw new Exception(__FUNCTION__ . ' repeat limit reached, check params for circular references');
         }
         $preg = preg_match_all($pattern, $sql . ' ', $matches, PREG_OFFSET_CAPTURE);
         if ($preg !== 0 and $preg !== false) {
@@ -70,11 +70,11 @@ function sql_ebind($sql, $bind, $bind_marker = '?') {
     $repeat = 0;
 
     // Bind normal params
-    $pattern = "/[^']{:[A-Za-z][A-Za-z0-9_]*}[^']/";
+    $pattern = "/{:[A-Za-z][A-Za-z0-9_]*}/";
     // iterate until no more single-curly-bracket expressions in $sql
     do {
         if ($repeat++ > $loop_limit) {
-            throw new YETIException(__FUNCTION__ . ' repeat limit reached, check params');
+            throw new YETIException(__FUNCTION__ . ' repeat limit reached, check params for circular references');
         }
         $preg = preg_match_all($pattern, $sql . ' ', $matches, PREG_OFFSET_CAPTURE);
         if ($preg !== 0 and $preg !== false) {

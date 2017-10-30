@@ -30,7 +30,7 @@ function sql_ebind(sql, bind, bind_marker) {
     do {
         matches_length = 0;
         if (repeat++ > loop_limit) {
-            throw arguments.callee.name + ' repeat limit reached, check params';
+            throw arguments.callee.name + ' repeat limit reached, check params for circular references';
         }
         matches = sql.match(pattern);
         if (matches) {
@@ -58,7 +58,7 @@ function sql_ebind(sql, bind, bind_marker) {
     do {
         matches_length = 0;
         if (repeat++ > loop_limit) {
-            throw arguments.callee.name + ' repeat limit reached, check params';
+            throw arguments.callee.name + ' repeat limit reached, check params for circular references';
         }
         matches = sql.match(pattern);
         if (matches) {

@@ -33,7 +33,7 @@ def sql_ebind(sql, bind, bind_marker = '?'):
         matches_length = 0
         repeat += 1
         if repeat > loop_limit:
-            raise ValueError(sys._getframe().f_code.co_name + ' repeat limit reached, check params')
+            raise ValueError(sys._getframe().f_code.co_name + ' repeat limit reached, check params for circular references')
         matches = re.findall(pattern, sql)
         matches_length = len(matches)
         # loop first to ???
@@ -57,7 +57,7 @@ def sql_ebind(sql, bind, bind_marker = '?'):
         matches_length = 0
         repeat += 1
         if repeat > loop_limit:
-            raise ValueError(sys._getframe().f_code.co_name + ' repeat limit reached, check params')
+            raise ValueError(sys._getframe().f_code.co_name + ' repeat limit reached, check params for circular references')
         matches = re.findall(pattern, sql)
         matches_length = len(matches)
         for i in range(len(matches)):
