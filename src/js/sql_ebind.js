@@ -15,11 +15,11 @@ function sql_ebind(sql, bind, bind_marker) {
     }
     var bind_matches = [];
     var ord_bind_list = [];
-    var loop_limit = 10;
+    var loop_limit = 1000;
 
     // Bind abnormal params
     // straight string substitution, don't add anything to $ord_bind_list
-    var pattern = new RegExp("{{:[A-Za-z][A-Za-z0-9_]*}}", "g");
+    var pattern = new RegExp("{{:[A-Za-z][A-Za-z0-9_]*}}");
 
     // prevend endless replacement
     var repeat = 0;
@@ -32,7 +32,6 @@ function sql_ebind(sql, bind, bind_marker) {
         if (repeat++ > loop_limit) {
             throw arguments.callee.name + ' repeat limit reached, check params';
         }
-        // $preg = preg_match_all($pattern, $sql . ' ', $matches, PREG_OFFSET_CAPTURE);
         matches = sql.match(pattern);
         if (matches) {
             matches_length = matches.length;
@@ -54,7 +53,7 @@ function sql_ebind(sql, bind, bind_marker) {
     repeat = 0;
 
     // Bind normal params
-    pattern = new RegExp("{:[A-Za-z][A-Za-z0-9_]*}", "g");
+    pattern = new RegExp("{:[A-Za-z][A-Za-z0-9_]*}");
     // iterate until no more single-curly-bracket expressions in $sql
     do {
         matches_length = 0;
@@ -69,12 +68,11 @@ function sql_ebind(sql, bind, bind_marker) {
             for(i=0; i<matches.length; i++) {
                 bind_matches[i] = (matches[i]).trim();
             }
-            // foreach($bind_matches as $field)
             for(i=0; i<bind_matches.length; i++) {
                 field = bind_matches[i];
                 if (bind[field].isArray) {
                     sql = sql.replace(
-                        new RegExp(bind_matches[i], 'g'),
+                        new RegExp(bind_matches[i]),
                         Array(bind[field].length)
                             .fill(bind_marker)
                             .join(', ')

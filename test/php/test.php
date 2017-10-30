@@ -8,8 +8,6 @@
  *
  */
 
-
-
 require './../src/php/sql_ebind.php';
 
 // Welcome to php_sql_named_bind!
@@ -376,5 +374,4 @@ function schema_remove($db, $schema, $t = false) {
 // $success = schema_remove('db_handle_stub', 'dbo_new', true);
 
 // ```
-
 
