@@ -17,11 +17,11 @@
  * By using named parameters, the order can be rearranged without breaking
  * the association, we gain flexibility and shed the ordinal correspondence
  * requirement at the expanse of having to name the parameters.  These
- * params are delimited with curly braces.  {normal_param_name}
+ * params are delimited with curly braces.  {:normal_param_name}
  *
  * Another feature was added.  Normally we can't have table or column names
  * be replaceable.  This function allows that flexibility by delimiting
- * those params with doubled curly braces. {{abnormal_param_name}}
+ * those params with doubled curly braces. {{:abnormal_param_name}}
  *
  * This new capability shouldn't introduce new exposure to SQL injection
  * since statements still have to make it through quoting and prepare
@@ -41,7 +41,6 @@ function sql_ebind($sql, $bind, $bind_marker = '?') {
 
     // Bind abnormal params
     // straight string substitution, don't add anything to $ord_bind_list
-    // $pattern = "/[^'.]{{[A-Za-z][A-Za-z0-9_]*}}[^']/";
     $pattern = "/{{:[A-Za-z][A-Za-z0-9_]*}}/";
 
     // prevend endless replacement

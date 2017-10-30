@@ -4,7 +4,21 @@ named parameter binding for SQL in PHP
 Welcome to eBindSQL!
 ===================
 
-This is a named parameter binding helper for generic SQL written in PHP.  It should be easy to use or customize.
+This is a named parameter binding helper for generic SQL with PHP, js, and Python implementations so far.
+
+It should be easy to use or customize.
+
+Adapted heavily from https://stackoverflow.com/a/11594332/7307768
+
+These placeholders must have ordinal positional correspondence with an array of values to substibute for each '?'.  One-to-one correspondence and in the exact order.
+
+This makes query maintenance painful and error-prone when doing things like shifting clauses and adding conditions.
+
+By using named parameters, the order can be rearranged without breaking the association, we gain flexibility and shed the ordinal correspondence requirement at the expanse of having to name the parameters.  These params are delimited with curly braces.  {:normal_param_name}  The "{:" was kept as a nod to older systems.  Identifiers follow the old rule of letter followed by any number of letters, numbers, '-', and '_'.
+
+Another feature was added.  Normally we can't have database, schema, table, or column names be replaceable.  This function allows that flexibility by delimiting those params with doubled curly braces. {{:abnormal_param_name}}
+
+This new capability shouldn't introduce new exposure to SQL injection since statements still have to successfully make it through quoting and prepare mechanisms.
 
 Where this was normal:
 ```php
@@ -291,3 +305,8 @@ $success = schema_remove('db_handle_stub', 'dbo_new', true);
 
 var_dump($query_bound); echo PHP_EOL;
 ```
+
+Examples TODO:  JOINs, subselects
+
+Bigger examples someday:  bad data hunter, a table->CRUD generator, relational model->CRUD generator
+
