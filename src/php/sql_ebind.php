@@ -1,84 +1,100 @@
-// sql_ebind
-//
-// Enhanced name binding for SQL queries implemented in js
-//
-// @param string $sql The sql query with params to be bound
-// @param Array  $bind  Assoc array of params to bind
-// @param string $bind_marker what to use
-//
-// @return Object(string sql with names replaced, array of normal params)
-//
-function sql_ebind(sql, bind, bind_marker) {
-    'use strict';
-        if(! bind_marker) {
-      bind_marker = '?';
-    }
-    var bind_matches = null;
-    var ord_bind_list = [];
-    var loop_limit = 1000;
+<?php
+/* sql_ebind
+ *
+ * Enhanced name binding for SQL queries
+ *
+ * A normal parameter is that kind of thing that has a placeholder of '?'
+ *
+ * Adapted heavily from https://stackoverflow.com/a/11594332/7307768
+ *
+ * These placeholders must have ordinal positional correspondence with an
+ * array of values to substibute for each '?'.  One-to-one correspondence
+ * and in the exact order.
+ *
+ * This makes query maintenance painful and error-prone when doing things
+ * like shifting clauses and adding conditions.
+ *
+ * By using named parameters, the order can be rearranged without breaking
+ * the association, we gain flexibility and shed the ordinal correspondence
+ * requirement at the expanse of having to name the parameters.  These
+ * params are delimited with curly braces.  {normal_param_name}
+ *
+ * Another feature was added.  Normally we can't have table or column names
+ * be replaceable.  This function allows that flexibility by delimiting
+ * those params with doubled curly braces. {{abnormal_param_name}}
+ *
+ * This new capability shouldn't introduce new exposure to SQL injection
+ * since statements still have to make it through quoting and prepare
+ * mechanisms.
+ *
+ * @param string $sql The sql query with params to be bound
+ * @param Array  $bind  Assoc array of params to bind
+ * @param string $bind_marker what to use
+ *
+ * @return Array(string sql with names replaced, array of normal params)
+ */
+function sql_ebind($sql, $bind, $bind_marker = '?') {
+
+    $bind_matches = null;
+    $ord_bind_list = Array();
+    $loop_limit = 10;
 
     // Bind abnormal params
     // straight string substitution, don't add anything to $ord_bind_list
-    var pattern = new RegExp("{{:[A-Za-z][A-Za-z0-9_]*}}");
+    // $pattern = "/[^'.]{{[A-Za-z][A-Za-z0-9_]*}}[^']/";
+    $pattern = "/{{:[A-Za-z][A-Za-z0-9_]*}}/";
 
     // prevend endless replacement
-    var repeat = 0;
-    var i, field, matches;
+    $repeat = 0;
 
     // iterate until no more double-curly-bracket expressions in $sql
     do {
-        if (repeat++ > loop_limit) {
-            throw arguments.callee.name + ' repeat limit reached, check params';
+        if ($repeat++ > $loop_limit) {
+            throw new Exception(__FUNCTION__ . ' repeat limit reached, check params');
         }
-        // $preg = preg_match_all($pattern, $sql . ' ', $matches, PREG_OFFSET_CAPTURE);
-        matches = sql.match(pattern);
-        if (matches.length > 0) {
-            for(i=0; i<matches.length; i++) {
-                bind_matches[i] = (matches[i]).trim();
+        $preg = preg_match_all($pattern, $sql . ' ', $matches, PREG_OFFSET_CAPTURE);
+        if ($preg !== 0 and $preg !== false) {
+            foreach($matches[0] as $key => $val) {
+                $bind_matches[$key] = trim($val[0]);
             }
-            // foreach($bind_matches as $field)
-            for(i=0; i<bind_matches.length; i++) {
+            foreach($bind_matches as $field) {
                 // sorry, no arrays allowed here
-                sql.replace(new RegExp(bind_matches[i]), bind[bind_matches[i]]);
+                $sql = str_replace($field, $bind[$field], $sql);
                 // no ? substitution for these parameters, direct substitution
             }
         }
-    } while (matches.length > 0);
+        unset($bind_matches);
+    } while ($preg !== 0 and $preg !== false);
 
-    // reset 
-    bind_matches = [];
-    repeat = 0;
+    // reset repeat count
+    $repeat = 0;
 
     // Bind normal params
-    pattern = new RegExp("/[^']{:[A-Za-z][A-Za-z0-9_]*}[^']/");
+    $pattern = "/[^']{:[A-Za-z][A-Za-z0-9_]*}[^']/";
     // iterate until no more single-curly-bracket expressions in $sql
     do {
-        if (repeat++ > loop_limit) {
-            throw arguments.callee.name + ' repeat limit reached, check params';
+        if ($repeat++ > $loop_limit) {
+            throw new YETIException(__FUNCTION__ . ' repeat limit reached, check params');
         }
-        matches = sql.match(pattern);
-        if (matches.length > 0) {
-            for(i=0; i<matches.length; i++) {
-                bind_matches[i] = (matches[i]).trim();
+        $preg = preg_match_all($pattern, $sql . ' ', $matches, PREG_OFFSET_CAPTURE);
+        if ($preg !== 0 and $preg !== false) {
+            foreach($matches[0] as $key=>$val) {
+                $bind_matches[$key] = trim($val[0]);
             }
-            // foreach($bind_matches as $field) 
-            for(i=0; i<bind_matches.length; i++) {
-                field = bind_matches[i];
-                if ((bind[field]).isArray()) {
-                    sql.replace(
-                        new RegExp(bind_matches[i], 'g'), 
-                        Array(bind[field].length)
-                            .fill(bind_marker)
-                            .join(', ')
-                    );
-                    ord_bind_list = ord_bind_list.concat(bind[field]);
+            foreach($bind_matches as $field) {
+                if (is_array($bind[$field])) {
+                    $sql = str_replace($field, implode(', ', array_fill(0, count($bind[$field]), $bind_marker)), $sql);
+                    $ord_bind_list = array_merge($ord_bind_list, $bind[$field]);
                 } else {
-                    sql.replace(new RegExp(bind_matches[i]), bind[bind_matches[i]]);
-                    ord_bind_list.push(bind[field]);
+                    $sql = str_replace($field, $bind_marker, $sql);
+                    $ord_bind_list[] = $bind[$field];
                 }
             }
         }
-    } while (matches.length > 0);
+    } while ($preg !== 0 and $preg !== false);
 
-    return {'sql': sql, 'params': ord_bind_list};
+    return Array(
+        'sql'    => $sql,
+        'params' => $ord_bind_list
+    );
 }

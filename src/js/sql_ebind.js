@@ -1,13 +1,13 @@
-// sql_ebind
-//
-// Enhanced name binding for SQL queries implemented in js
-//
-// @param string $sql The sql query with params to be bound
-// @param Array  $bind  Assoc array of params to bind
-// @param string $bind_marker what to use
-//
-// @return Object(string sql with names replaced, array of normal params)
-//
+/* sql_ebind
+ *
+ * Enhanced name binding for SQL queries implemented in js
+ *
+ * @param string $sql The sql query with params to be bound
+ * @param Array  $bind  Assoc array of params to bind
+ * @param string $bind_marker what to use
+ *
+ * @return Object(string sql with names replaced, array of normal params)
+ */
 function sql_ebind(sql, bind, bind_marker) {
     'use strict';
         if(! bind_marker) {

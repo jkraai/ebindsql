@@ -20,13 +20,13 @@ Example, usage example for simple parameter:
 $sql = implode(" \n", Array(
     "SELECT ID, lname, fname",
     "FROM dbo.table_name_01",
-    "WHERE ID = {ID_cond}",
-    "AND lname LIKE {lname_cond}"
+    "WHERE ID = {:ID_cond}",
+    "AND lname LIKE {:lname_cond}"
 ));
 
 $params = Array(
-    '{lname_cond}' => '%mith',
-    '{ID_cond}' => '2c92c0f95ccf2766015cd11c48a93690',
+    '{:lname_cond}' => '%mith',
+    '{:ID_cond}' => '2c92c0f95ccf2766015cd11c48a93690',
 );
 $query_bound = sql_ebind($sql, $params);
 $this->db->query($query_bound['sql'], $query_bound['params']);
@@ -61,9 +61,9 @@ $sql = implode(" \n", Array(
 ));
 
 $params = Array(
-    '{{colname_01}}' => 'ID',
-    '{wherecond_01}' => '2c92c0f95ccf2766015cd11c48a93690',
-    '{wherecond_02}' => '%mith',
+    '{{:colname_01}}' => 'ID',
+    '{:wherecond_01}' => '2c92c0f95ccf2766015cd11c48a93690',
+    '{:wherecond_02}' => '%mith',
 );
 $query_bound = sql_ebind($sql, $params);
 $this->db->query($query_bound['sql'], $query_bound['params']);
@@ -97,10 +97,10 @@ $sql = implode(" \n", Array(
   ));
 
 $params = Array(
-    '{{field_name}}' => 'ID',
-    '{{table_name}}' => 'dbo.table_name_01',
-    '{wherecond_01}' => '2c92c0f95ccf2766015cd11c48a93690',
-    '{wherecond_02}' => Array(3, 5, 7),
+    '{{:field_name}}' => 'ID',
+    '{{:table_name}}' => 'dbo.table_name_01',
+    '{:wherecond_01}' => '2c92c0f95ccf2766015cd11c48a93690',
+    '{:wherecond_02}' => Array(3, 5, 7),
 );
 $query_bound = sql_ebind($sql, $params);
 $this->db->query($query_bound['sql'], $query_bound['params']);
@@ -125,10 +125,10 @@ $sql = implode(" \n", Array(
     "WHERE {{id_field_name}} = {wherecond_01}",
 ));
 $params = Array(
-    '{{field_names}}' => 'col1, col2, col3',
-    '{{id_field_name}}' => 'col1',
-    '{{table_name}}'  => 'dbo.table_name_01',
-    '{wherecond_01}'  => 1729
+    '{{:field_names}}' => 'col1, col2, col3',
+    '{{:id_field_name}}' => 'col1',
+    '{{:table_name}}'  => 'dbo.table_name_01',
+    '{:wherecond_01}'  => 1729
 );
 $query_bound = sql_ebind($sql, $params);
 $this->db->query($query_bound['sql'], $query_bound['params']);
@@ -155,31 +155,31 @@ Example for general SELECT query builder:
 // note that replacement values contain replacement keys
 // that get replaced inside a do{} loop
 $sql_params = Array(
-    '{{with_statement}}'      => '',
-    '{{select_list}}'         => '*',
-    '{{table_source}}'        => 'dbo.{{table_name}}',
-    '{{wsearch_condition}}'   => '{{id_col}} = {ID}',
-    '{{group_by_expression}}' => '',
-    '{{hsearch_condition}}'   => '',
-    '{{order_expression}}'    => '{{id_col}}',
+    '{{:with_statement}}'      => '',
+    '{{:select_list}}'         => '*',
+    '{{:table_source}}'        => 'dbo.{{table_name}}',
+    '{{:wsearch_condition}}'   => '{{id_col}} = {ID}',
+    '{{:group_by_expression}}' => '',
+    '{{:hsearch_condition}}'   => '',
+    '{{:order_expression}}'    => '{{id_col}}',
 );
 
 // build the query
 $sql = '';
-if (!@empty($sql_params['{{with_statement}}'])     ) $sql .= 'WITH     {{with_statement}} ';
-$sql                                                      .= 'SELECT   {{select_list}} ';
-if (!@empty($sql_params['{{table_source}}'])       ) $sql .= 'FROM     {{table_source}} ';
-if (!@empty($sql_params['{{wsearch_condition}}'])  ) $sql .= 'WHERE    {{wsearch_condition}} ';
-if (!@empty($sql_params['{{group_by_expression}}'])) $sql .= 'GROUP BY {{group_by_expression}} ';
-if (!@empty($sql_params['{{hsearch_condition}}'])  ) $sql .= 'HAVING   {{hsearch_condition}} ';
-if (!@empty($sql_params['{{order_expression}}'])   ) $sql .= 'ORDER BY {{order_expression}} ';
+if (!@empty($sql_params['{{with_statement}}'])     ) $sql .= 'WITH     {{:with_statement}} ';
+$sql                                                      .= 'SELECT   {{:select_list}} ';
+if (!@empty($sql_params['{{table_source}}'])       ) $sql .= 'FROM     {{:table_source}} ';
+if (!@empty($sql_params['{{wsearch_condition}}'])  ) $sql .= 'WHERE    {{:wsearch_condition}} ';
+if (!@empty($sql_params['{{group_by_expression}}'])) $sql .= 'GROUP BY {{:group_by_expression}} ';
+if (!@empty($sql_params['{{hsearch_condition}}'])  ) $sql .= 'HAVING   {{:hsearch_condition}} ';
+if (!@empty($sql_params['{{order_expression}}'])   ) $sql .= 'ORDER BY {{:order_expression}} ';
 
 // add some more params
-$sql_params['{{table_name}}'] = 'Account';
-$sql_params['{{id_col}}'] = 'ID';
+$sql_params['{{:table_name}}'] = 'Account';
+$sql_params['{{:id_col}}'] = 'ID';
 
 // fill in the actual ID being sought
-$sql_params['{ID}'] = 9;
+$sql_params['{:ID}'] = 9;
 
 // bind names
 $query_bound = sql_ebind($sql, $sql_params);
@@ -244,8 +244,8 @@ function schema_remove($db, $schema, $t = false) {
             "  AND type_desc = {type_desc}",
         ));
         $sql_params = Array(
-            '{schema_name}' => $schema,
-            '{type_desc}' => $type_desc,
+            '{:schema_name}' => $schema,
+            '{:type_desc}' => $type_desc,
         );
         $bound = sql_ebind($sql,$sql_params);
         $db_res = $db->query($bound['sql'], $bound['params']);
@@ -256,11 +256,11 @@ function schema_remove($db, $schema, $t = false) {
         // DROP 'em
         foreach ($db_res->result_array() as $row) {
             $bound = DBEenhancedBind(
-                'DROP {{keyword}} [{{schema_name}}].[{{tablename}}]',
+                'DROP {{:keyword}} [{{:schema_name}}].[{{:tablename}}]',
                 Array(
-                    '{{schema_name}}' => $schema,
-                    '{{keyword}}' => $keyword,
-                    '{{tablename}}' => $row[0],
+                    '{{:schema_name}}' => $schema,
+                    '{{:keyword}}' => $keyword,
+                    '{{:tablename}}' => $row[0],
                 )
             );
             if ($t) {
@@ -273,8 +273,8 @@ function schema_remove($db, $schema, $t = false) {
 
     // DROP the now empty schema
     $bound = sql_ebind(
-        'DROP SCHEMA {{schema_name}}',
-        Array('{{schema_name}}' => $schema)
+        'DROP SCHEMA {{:schema_name}}',
+        Array('{{:schema_name}}' => $schema)
     );
     if ($t) {
         var_dump($bound); echo PHP_EOL;

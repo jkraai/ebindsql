@@ -2,16 +2,24 @@ import re
 import sys
 import types
 
-# sql_ebind
-#
-# Enhanced name binding for SQL queries implemented in js
-#
-# @param string $sql The sql query with params to be bound
-# @param Array  $bind  Assoc array of params to bind
-# @param string $bind_marker what to use
-#
-# @return Object(string sql with names replaced, array of normal params)
 def sql_ebind(sql, bind, bind_marker = '?'):
+
+    """sql_ebind
+
+    Enhanced name binding for SQL queries implemented in js
+
+    Args:
+        sql (string): The sql query with params to be bound
+        bind (Dict): Dict of params to bind
+        bind_marker (str): string to use for parameter placeholder
+
+    Returns:
+        Dict: {
+            sql:    (string) ready-to-prepare SQL, 
+            params: (List)   ordered list of params for sql
+        }
+    """
+
     bind_matches = []
     ord_bind_list = []
     loop_limit = 10
@@ -55,8 +63,6 @@ def sql_ebind(sql, bind, bind_marker = '?'):
         for i in range(len(matches)):
             match = matches[i]
             bind_matches.append(match)
-            # for i in range(len(matches)):
-            #     match = matches[i]
             field = bind_matches[i];
             if type(bind[field]) is types.ListType:
                 sql = re.sub(
