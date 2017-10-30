@@ -90,10 +90,10 @@ array(2) {
 Example with the number of parameters unknown ahead of time:
 ```php
 $sql = implode(" \n", Array(
-    "SELECT {{field_name}}",
-    "FROM {{table_name}}",
-    "WHERE {{field_name}} = {wherecond_01}",
-    "  OR field_name_02 IN ( {wherecond_02} )",
+    "SELECT {{:field_name}}",
+    "FROM {{:table_name}}",
+    "WHERE {{:field_name}} = {:wherecond_01}",
+    "  OR field_name_02 IN ( {:wherecond_02} )",
   ));
 
 $params = Array(
@@ -120,9 +120,9 @@ Should give"
 Example for multiple columns:
 ```php
 $sql = implode(" \n", Array(
-    "SELECT {{field_names}}",
-    "FROM {{table_name}}",
-    "WHERE {{id_field_name}} = {wherecond_01}",
+    "SELECT {{:field_names}}",
+    "FROM {{:table_name}}",
+    "WHERE {{:id_field_name}} = {:wherecond_01}",
 ));
 $params = Array(
     '{{:field_names}}' => 'col1, col2, col3',
@@ -157,22 +157,22 @@ Example for general SELECT query builder:
 $sql_params = Array(
     '{{:with_statement}}'      => '',
     '{{:select_list}}'         => '*',
-    '{{:table_source}}'        => 'dbo.{{table_name}}',
-    '{{:wsearch_condition}}'   => '{{id_col}} = {ID}',
+    '{{:table_source}}'        => 'dbo.{{:table_name}}',
+    '{{:wsearch_condition}}'   => '{{:id_col}} = {:ID}',
     '{{:group_by_expression}}' => '',
     '{{:hsearch_condition}}'   => '',
-    '{{:order_expression}}'    => '{{id_col}}',
+    '{{:order_expression}}'    => '{{:id_col}}',
 );
 
 // build the query
 $sql = '';
-if (!@empty($sql_params['{{with_statement}}'])     ) $sql .= 'WITH     {{:with_statement}} ';
-$sql                                                      .= 'SELECT   {{:select_list}} ';
-if (!@empty($sql_params['{{table_source}}'])       ) $sql .= 'FROM     {{:table_source}} ';
-if (!@empty($sql_params['{{wsearch_condition}}'])  ) $sql .= 'WHERE    {{:wsearch_condition}} ';
-if (!@empty($sql_params['{{group_by_expression}}'])) $sql .= 'GROUP BY {{:group_by_expression}} ';
-if (!@empty($sql_params['{{hsearch_condition}}'])  ) $sql .= 'HAVING   {{:hsearch_condition}} ';
-if (!@empty($sql_params['{{order_expression}}'])   ) $sql .= 'ORDER BY {{:order_expression}} ';
+if (!@empty($sql_params['{{:with_statement}}'])     ) $sql .= 'WITH     {{:with_statement}} ';
+$sql                                                       .= 'SELECT   {{:select_list}} ';
+if (!@empty($sql_params['{{:table_source}}'])       ) $sql .= 'FROM     {{:table_source}} ';
+if (!@empty($sql_params['{{:wsearch_condition}}'])  ) $sql .= 'WHERE    {{:wsearch_condition}} ';
+if (!@empty($sql_params['{{:group_by_expression}}'])) $sql .= 'GROUP BY {{:group_by_expression}} ';
+if (!@empty($sql_params['{{:hsearch_condition}}'])  ) $sql .= 'HAVING   {{:hsearch_condition}} ';
+if (!@empty($sql_params['{{:order_expression}}'])   ) $sql .= 'ORDER BY {{:order_expression}} ';
 
 // add some more params
 $sql_params['{{:table_name}}'] = 'Account';
@@ -240,8 +240,8 @@ function schema_remove($db, $schema, $t = false) {
         $sql = implode(" \n", Array(
             "SELECT SCHEMA_NAME(schema_id) + '.' + name as fullname",
             "FROM sys.objects",
-            "WHERE SCHEMA_NAME(schema_id) = {schema_name}",
-            "  AND type_desc = {type_desc}",
+            "WHERE SCHEMA_NAME(schema_id) = {:schema_name}",
+            "  AND type_desc = {:type_desc}",
         ));
         $sql_params = Array(
             '{:schema_name}' => $schema,
