@@ -25,20 +25,20 @@ Two capabilities have been added.
 
 Runaway behavior resulting from circular substitutions are caught with a loop counter.  It's cheaper in lines of code, readability, and maintenance than generating and validating a digraph.  Anyone who wishes to fork and digraph is most welcome to do so!  I could probably learn good things from reading the code.
 
-These new capabilities shouldn't introduce new exposures to SQL injection attacks as statements still have to successfully make it through quoting and prepare mechanisms.
+These new capabilities don't introduce new exposures to SQL injection attacks as the generated statements still have to successfully make it through prepare mechanisms.
 
-Advanced users who find this technique too limiting should look into tools like [GNU M4](https://www.gnu.org/software/m4/m4.html), writing a little language, or creating the next Favia++# big language.
+Advanced users who find this technique too limiting should look into tools like a macro processor, writing a little language, or creating the next big language.
 
 Documentation by Example
 ---------------
 ### A simple substitution example
 Where this was normal
 ```php
-query("SELECT id, lname, fname FROM people where lname='?'")
+prepare("SELECT id, lname, fname FROM people where lname='?'")
 ```
 We can use:
 ```php
-query("SELECT id, lname, fname FROM people where lname={:name}")
+prepare("SELECT id, lname, fname FROM people where lname={:name}")
 ```
 
 
@@ -57,10 +57,6 @@ $params = Array(
 );
 $query_bound = sql_ebind($sql, $params);
 var_dump($query_bound); echo PHP_EOL;
-$this->db->query(
-    $query_bound['sql'], 
-    $query_bound['params']
-);
 ```
 should give 
 ```
@@ -98,10 +94,6 @@ $params = Array(
 );
 $query_bound = sql_ebind($sql, $params);
 var_dump($query_bound); echo PHP_EOL;
-$this->db->query(
-    $query_bound['sql'], 
-    $query_bound['params']
-);
 ```
 should give 
 ```
@@ -141,7 +133,6 @@ $params = Array(
 );
 $query_bound = sql_ebind($sql, $params);
 var_dump($query_bound); echo PHP_EOL;
-$this->db->query($query_bound['sql'], $query_bound['params']);
 ```
 Should give:
 ```
@@ -171,7 +162,6 @@ $params = Array(
 );
 $query_bound = sql_ebind($sql, $params);
 var_dump($query_bound); echo PHP_EOL;
-$this->db->query($query_bound['sql'], $query_bound['params']);
 ```
 should give:
 ```
@@ -224,7 +214,6 @@ $sql_params['{:ID}'] = 9;
 // bind names
 $query_bound = sql_ebind($sql, $sql_params);
 var_dump($query_bound); echo PHP_EOL;
-$this->db->query($query_bound['sql'], $query_bound['params']);
 ```
 should give:
 ```
