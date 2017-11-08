@@ -10,11 +10,15 @@
  */
 function sql_ebind(sql, bind, bind_marker) {
     'use strict';
-        if(! bind_marker) {
-      bind_marker = '?';
-    }
+    // handle default values
+    bind = typeof bind !== 'undefined' ? bind : [];
+    bind_marker = typeof bind_marker !== 'undefined' ? bind_marker : '?';
+
+    // to hold $pattern matches
     var bind_matches = [];
+    // to hold ordered list of replacements
     var ord_bind_list = [];
+    // limit to catch endless replacement loops
     var loop_limit = 1000;
 
     // Bind abnormal params

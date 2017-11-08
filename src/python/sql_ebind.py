@@ -2,7 +2,7 @@ import re
 import sys
 import types
 
-def sql_ebind(sql, bind, bind_marker = '?'):
+def sql_ebind(sql, bind = [], bind_marker = '?'):
 
     """sql_ebind
 
@@ -20,9 +20,12 @@ def sql_ebind(sql, bind, bind_marker = '?'):
         }
     """
 
+    # to hold $pattern matches
     bind_matches = []
+    # to hold ordered list of replacements
     ord_bind_list = []
-    loop_limit = 10
+    # limit to catch endless replacement loops
+    loop_limit = 1000
 
     # Bind abnormal params, such as structural objects
     pattern = re.compile("{{:[A-Za-z][A-Za-z0-9_]*}}")

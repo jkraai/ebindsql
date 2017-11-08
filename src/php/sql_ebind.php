@@ -33,11 +33,14 @@
  *
  * @return Array(string sql with names replaced, array of normal params)
  */
-function sql_ebind($sql, $bind, $bind_marker = '?') {
+function sql_ebind($sql, array $bind = array(), $bind_marker = '?') {
 
+    // to hold $pattern matches
     $bind_matches = null;
+    // to hold ordered list of replacements
     $ord_bind_list = Array();
-    $loop_limit = 10;
+    // limit to catch endless replacement loops
+    $loop_limit = 1000;
 
     // Bind abnormal params
     // straight string substitution, don't add anything to $ord_bind_list
