@@ -10,6 +10,7 @@
 
 require './../src/php/sql_ebind.php';
 
+/*
 // Welcome to php_sql_named_bind!
 // ===================
 // This is a named parameter binding helper for generic SQL written in PHP.  It should be easy to use or customize.
@@ -164,15 +165,37 @@ array(2) {
   }
 }
 EOS;
+
+*/
+
 // ```
 // 
 // Example for general SELECT query builder:
 // ```php
 // // note that replacement values contain replacement keys
 // // that get replaced inside a do{} loop
+// build the query
+$sql_select = '{{:GEN_SQL_SELECT}}';
+
+$gen_sql_select = <<<'EOS'
+{{:WITH_clause}}
+SELECT {{:field_list}}
+{{:FROM_clause}}
+{{:WHERE_clause}}
+{{:GROUPBY_clause}}
+{{:HAVING_clause}}
+{{:ORDERBY_clause}}
+EOS;
+
 $sql_params = Array(
-    '{{:with_statement}}'      => '',
-    '{{:field_list}}'         => '*',
+    '{{:GEN_SQL_SELECT}}'      => $gen_sql_select,
+    '{{:WITH_clause}}'         => '',
+    '{{:FROM_clause}}'         => 'FROM {{:table_source}}',
+    '{{:WHERE_clause}}'        => 'WHERE {{:wsearch_condition}}',
+    '{{:GROUPBY_clause}}'      => '',
+    '{{:HAVING_clause}}'       => '',
+    '{{:ORDERBY_clause}}'      => 'ORDER BY {{:order_expression}}',
+    '{{:field_list}}'          => '*',
     '{{:table_source}}'        => 'dbo.{{:table_name}}',
     '{{:wsearch_condition}}'   => '{{:id_col}} = {:ID}',
     '{{:group_by_expression}}' => '',
@@ -180,33 +203,16 @@ $sql_params = Array(
     '{{:order_expression}}'    => '{{:id_col}}',
 );
 
-// build the query
-$sql_select = 'SELECT {{:field_list}} ';
-// prepend WITH
-if (!@empty($sql_params['{{:with_statement}}']))
-    $sql_select = 'WITH {{:with_statement}} ' . $sql_select;
-if (!@empty($sql_params['{{:table_top}}']))
-    $sql_select .= 'TOP {{:table_top}} ';
-if (!@empty($sql_params['{{:table_source}}']))
-    $sql_select .= 'FROM {{:table_source}} ';
-if (!@empty($sql_params['{{:wsearch_condition}}']))
-    $sql_select .= 'WHERE {{:wsearch_condition}} ';
-if (!@empty($sql_params['{{:group_by_expression}}']))
-    $sql_select .= 'GROUP BY {{:group_by_expression}} ';
-if (!@empty($sql_params['{{:hsearch_condition}}']))
-    $sql_select .= 'HAVING {{:hsearch_condition}} ';
-if (!@empty($sql_params['{{:order_expression}}']))
-    $sql_select .= 'ORDER BY {{:order_expression}} ';
-
 // add some more params
 $sql_params['{{:table_name}}'] = 'Account';
 $sql_params['{{:id_col}}'] = 'ID';
 
 // fill in the actual ID being sought
-$sql_params['{:ID}'] = 9;
+$sql_params['{:ID}'] = 9876;
 
 // bind names
 $query_bound = sql_ebind($sql_select, $sql_params);
+$query_bound['sql'] = trim($query_bound['sql']);
 // $this->db->query($query_bound['sql'], $query_bound['params']);
 var_dump($query_bound); echo PHP_EOL;
 // ```
@@ -224,6 +230,8 @@ array(2) {
   }
 }
 EOS;
+exit;
+
 // ```
 // 
 // Use the same parameters for a delete statement
