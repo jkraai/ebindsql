@@ -51,14 +51,15 @@ function sql_ebind($sql, array $bind = array(), $bind_marker = '?') {
     // Phase 1:  inline replace from file(s)
     // {{{:filepath.ext}}}
     // iterate until no more triple-curly-bracket expressions in $sql
+		$subs = 0;
     do {
         if ($repeat++ > $loop_limit) {
             throw new Exception(__FUNCTION__ . ' repeat limit reached, check params for circular references');
         }
         $subs = 0;
         foreach ($bind as $key => $val) {
-            if (   substr($key, 0, 4) == '{{{:'
-                && strpos($sql, $key) > -1
+            if (   substr($key, 0, 4) == '{{{:'  // $key is a filename
+                && strpos($sql, $key) > -1       // $key is in $sql
             ) {
                 $filename = $val;
                 if (file_exists($filename)) {
@@ -86,11 +87,12 @@ function sql_ebind($sql, array $bind = array(), $bind_marker = '?') {
         $subs = 0;
         // since we're not tracking positional replacements in this phase, loop over $bind
         foreach ($bind as $key => $val) {
-            if (substr($key, 0, 3) == '{{:') {
+            if (   substr($key, 0, 3) == '{{:'  // $key is a structural param
+                && strpos($sql, $key) > -1      // $key is in $sql
+            ) {
                 $sql = str_replace($key, $val, $sql);
             }
         }
-        unset($bind_matches);
     } while ($subs > 0);
 
     // Phase 3:  Bind normal params
