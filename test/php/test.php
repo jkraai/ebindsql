@@ -10,7 +10,6 @@
 
 require './../src/php/sql_ebind.php';
 
-/*
 // Welcome to php_sql_named_bind!
 // ===================
 // This is a named parameter binding helper for generic SQL written in PHP.  It should be easy to use or customize.
@@ -166,8 +165,6 @@ array(2) {
 }
 EOS;
 
-*/
-
 // ```
 // 
 // Example for general SELECT query builder:
@@ -230,7 +227,19 @@ array(2) {
   }
 }
 EOS;
-exit;
+
+
+$sql_select = '{{{:INCLUDE_GEN_SQL_SELECT}}}';
+
+$sql_params['{{{:INCLUDE_GEN_SQL_SELECT}}}'] = 'php/includefile.sql';
+
+// print_r($sql_params); echo PHP_EOL; exit;
+
+// bind names
+$query_bound = sql_ebind($sql_select, $sql_params);
+$query_bound['sql'] = trim($query_bound['sql']);
+// $this->db->query($query_bound['sql'], $query_bound['params']);
+var_dump($query_bound); echo PHP_EOL;
 
 // ```
 // 

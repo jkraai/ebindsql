@@ -1,25 +1,23 @@
 # eBindSQL
 Enhanced named binding for SQL
 
-Welcome to eBindSQL!
----------------
-
-This is a named parameter binding helper for generic SQL with PHP, js, and Python implementations so far.  The implementation was inspired by https://stackoverflow.com/a/11594332/7307768, and should be easy to use or customize.  
+# Welcome!
+This is a named parameter binding helper for generic SQL with PHP, js, and Python implementations so far.  The implementation was inspired by a need for https://stackoverflow.com/a/11594332/7307768 in CodeIgniter, and should be easy to use directly or to customize for other needs.
 
 The examples are Transact SQL, but the code will work out-of-the-box for other SQL dialects.  This is a simple, iterated string substitution technique that is published for writing SQL queries.  No checks are made to ensure that the output is valid SQL.  
 
 This technique could be used out-of-the-box for many kinds of non-SQL code generation.
 
-The problems to be solved are:
-* when preparing SQL statements for execution, the '?' placeholders must have ordinal positional correspondence with a passed array of values to substitute for each '?'.  One-to-one correspondence and in the exact order
-* '?' placeholders can only stand in for values, not column or table names
+## The problems to be solved are:
+* when preparing SQL statements for execution, the ```?``` placeholders must have ordinal positional correspondence with a passed array of values to substitute for each ```?```.  One-to-one correspondence and in the exact order
+* ```?``` placeholders can only stand in for values, not column or table names
 * traditional implementations are simple and flat and are expressively and functionally limiting
 
 The first makes query maintenance tedious and error-prone when doing even the simplest refactoring, including shifting clauses and adding or removing conditions.
 
-By using named parameters, the order can be rearranged without breaking the association, flexibility is gained and the ordinal correspondence requirement is shed at the expanse of having to name the parameters.  These params are delimited with curly braces.  {:normal_param_name}  (The "{:" was kept as a nod to older systems.)  Case sensitive identifiers follow a convention of a letter followed by any number of letters, numbers, '-' dash, and '_' underscore.
+By using named parameters, the order can be rearranged without breaking the association, flexibility is gained and the ordinal correspondence requirement is shed at the expanse of having to name the parameters.  These params are delimited with curly braces.  ```{:normal_param_name}```  (The ```{:``` was kept as a nod to older systems.)  Case sensitive identifiers follow a convention of a letter followed by any number of letters, numbers, ```-``` dash, and ```_``` underscore.
 
-Two capabilities have been added. 
+## New capabilities have been added. 
 *  Normally a statement to be prepared can't have database, schema, table, or column names be replaceable.  This allows that flexibility by delimiting those params with double curly braces. {{:abnormal_param_name}}
 *  Substitution loops are put inside while loops that repeat until no further replacements have been made.
 
@@ -29,9 +27,20 @@ These new capabilities don't introduce new exposures to SQL injection attacks as
 
 Advanced users who find this technique too limiting should look into tools like a macro processor, writing a little language, or creating the next big language.
 
-Documentation by Example
----------------
-### A simple substitution example
+## How it Works
+The function operates in three phases:
+
+* Phase 2:  Double-curly-braced strings are replaced with strings passed in a mapping
+* Phase 3:  Single-curly-braced strings are replaced with SQL parameter placeholders
+* Phase 1:  Triple-curly-braced strings are replaced with contents of files
+
+## What Feels Kinda Klunky
+The function returns a structure with two parts:
+* a SQL string
+* an array or list of 
+
+# Documentation by Example
+## A simple substitution
 Where this was normal
 ```php
 prepare("SELECT id, lname, fname FROM people where lname='?'")
@@ -41,8 +50,7 @@ We can use:
 prepare("SELECT id, lname, fname FROM people where lname={:name}")
 ```
 
-
-### Usage example for simple parameters
+## Usage for simple parameters
 ```php
 $sql = implode(" \n", Array(
     "SELECT ID, lname, fname",
@@ -56,9 +64,9 @@ $params = Array(
     '{:ID_cond}' => '4d7ab00ae2561cbc1a58a1ccbf0192cf',
 );
 $query_bound = sql_ebind($sql, $params);
-var_dump($query_bound); echo PHP_EOL;
+print_r($query_bound); echo PHP_EOL;
 ```
-should give 
+will give 
 ```
 array(2) {
   'sql' =>
@@ -76,8 +84,7 @@ array(2) {
 }
 ```
 
-
-### Structural parameter and replacement looping:
+## Structural parameter and replacement looping:
 ```php
 $sql = implode(" \n", Array(
     "SELECT {{:colname_01}}, lname, fname",
@@ -93,9 +100,9 @@ $params = Array(
     '{:wherecond_02}' => '%mith',
 );
 $query_bound = sql_ebind($sql, $params);
-var_dump($query_bound); echo PHP_EOL;
+print_r($query_bound); echo PHP_EOL;
 ```
-should give 
+will give 
 ```
 array(2) {
   'sql' =>
@@ -115,8 +122,7 @@ array(2) {
 ```
 In the above example, note ```{{:colname_01_PrimaryKey}} -> {{:colname_01}} -> 'ID'```
 
-
-### Number of parameters unknown ahead of time
+## Number of parameters unknown ahead of time
 ```php
 $sql = implode(" \n", Array(
     "SELECT {{:field_name}}",
@@ -132,9 +138,9 @@ $params = Array(
     '{:wherecond_02}' => Array(3, 5, 7),
 );
 $query_bound = sql_ebind($sql, $params);
-var_dump($query_bound); echo PHP_EOL;
+print_r($query_bound); echo PHP_EOL;
 ```
-Should give:
+will give:
 ```
 {
     "sql":"SELECT ID
@@ -145,8 +151,7 @@ Should give:
 }
 ```
 
-
-### Multiple columns
+## Multiple columns
 ```php
 $sql = implode(" \n", Array(
     "SELECT {{:field_names}}",
@@ -161,9 +166,9 @@ $params = Array(
     '{:wherecond_01}'  => 1729
 );
 $query_bound = sql_ebind($sql, $params);
-var_dump($query_bound); echo PHP_EOL;
+print_r($query_bound); echo PHP_EOL;
 ```
-should give:
+will give:
 ```
 array(2) {
   'sql' =>
@@ -179,30 +184,35 @@ array(2) {
 }
 ```
 
-
-### General SELECT query builder
+## General SELECT query builder
 ```php
-// note that replacement values contain replacement keys
-// that get replaced inside a do{} loop
+$sql_select = '{{:GEN_SQL_SELECT}}';
+
+$gen_sql_select = <<<'EOS'
+{{:WITH_clause}}
+SELECT {{:field_list}}
+{{:FROM_clause}}
+{{:WHERE_clause}}
+{{:GROUPBY_clause}}
+{{:HAVING_clause}}
+{{:ORDERBY_clause}}
+EOS;
+
 $sql_params = Array(
-    '{{:with_statement}}'      => '',
-    '{{:select_list}}'         => '*',
+    '{{:GEN_SQL_SELECT}}'      => $gen_sql_select,
+    '{{:WITH_clause}}'         => '',
+    '{{:FROM_clause}}'         => 'FROM {{:table_source}}',
+    '{{:WHERE_clause}}'        => 'WHERE {{:wsearch_condition}}',
+    '{{:GROUPBY_clause}}'      => '',
+    '{{:HAVING_clause}}'       => '',
+    '{{:ORDERBY_clause}}'      => 'ORDER BY {{:order_expression}}',
+    '{{:field_list}}'          => '*',
     '{{:table_source}}'        => 'dbo.{{:table_name}}',
     '{{:wsearch_condition}}'   => '{{:id_col}} = {:ID}',
     '{{:group_by_expression}}' => '',
     '{{:hsearch_condition}}'   => '',
     '{{:order_expression}}'    => '{{:id_col}}',
 );
-
-// build the query
-$sql = '';
-if (!@empty($sql_params['{{:with_statement}}'])     ) $sql .= 'WITH     {{:with_statement}} ';
-$sql                                                       .= 'SELECT   {{:select_list}} ';
-if (!@empty($sql_params['{{:table_source}}'])       ) $sql .= 'FROM     {{:table_source}} ';
-if (!@empty($sql_params['{{:wsearch_condition}}'])  ) $sql .= 'WHERE    {{:wsearch_condition}} ';
-if (!@empty($sql_params['{{:group_by_expression}}'])) $sql .= 'GROUP BY {{:group_by_expression}} ';
-if (!@empty($sql_params['{{:hsearch_condition}}'])  ) $sql .= 'HAVING   {{:hsearch_condition}} ';
-if (!@empty($sql_params['{{:order_expression}}'])   ) $sql .= 'ORDER BY {{:order_expression}} ';
 
 // add some more params
 $sql_params['{{:table_name}}'] = 'Account';
@@ -213,9 +223,9 @@ $sql_params['{:ID}'] = 9;
 
 // bind names
 $query_bound = sql_ebind($sql, $sql_params);
-var_dump($query_bound); echo PHP_EOL;
+print_r($query_bound); echo PHP_EOL;
 ```
-should give:
+will give:
 ```
 array(2) {
   'sql' =>
@@ -228,8 +238,25 @@ array(2) {
 }
 ```
 
+## Same as previous with contents of a file
+```php
+$sql_select = '{{{:GEN_SQL_SELECT}}';
+$sql_params['{{{:GEN_SQL_SELECT}}' => '../sql/general_select.sql';
+/* contents of ../sql/general_select.sql
+    {{:WITH_clause}}
+    SELECT {{:field_list}}
+    {{:FROM_clause}}
+    {{:WHERE_clause}}
+    {{:GROUPBY_clause}}
+    {{:HAVING_clause}}
+    {{:ORDERBY_clause}}
+*/
+// bind names
+$query_bound = sql_ebind($sql, $sql_params);
+print_r($query_bound); echo PHP_EOL;
+```
 
-### Function to remove schema in TSQL:
+## Function to remove schema in TSQL:
 ```php
 /*
  * drop_schema
@@ -282,7 +309,7 @@ function schema_remove($db, $schema, $t = false) {
         $bound = sql_ebind($sql, $sql_params);
         $db_res = $db->query($bound['sql'], $bound['params']);
         if ($t) {
-            var_dump($bound); echo PHP_EOL;
+            print_r($bound); echo PHP_EOL;
         }
 
         // DROP 'em
@@ -296,7 +323,7 @@ function schema_remove($db, $schema, $t = false) {
                 )
             );
             if ($t) {
-                var_dump($bound); echo PHP_EOL;
+                print_r($bound); echo PHP_EOL;
             } else {
                 $db_res = $db->query($bound['sql'], $bound['params']);
             }
@@ -309,7 +336,7 @@ function schema_remove($db, $schema, $t = false) {
         Array('{{:schema_name}}' => $schema)
     );
     if ($t) {
-        var_dump($bound); echo PHP_EOL;
+        print_r($bound); echo PHP_EOL;
         $affected = 1;
     } else {
         $db_res = $db->query($bound['sql'], $bound['params']);
@@ -322,7 +349,7 @@ function schema_remove($db, $schema, $t = false) {
 $success = schema_remove('db_handle_stub', 'dbo_new', true);
 ```
 
-TODO:  Need contributor examples:
+# TODO:  Need contributor examples:
 * Easy
     * JOINs
     * subselects

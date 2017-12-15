@@ -49,26 +49,32 @@ function sql_ebind($sql, array $bind = array(), $bind_marker = '?') {
     $repeat = 0;
 
     // Phase 1:  inline replace from file(s)
-    $pattern = "/{{{:([A-Za-z0-9\/._-]+)}}}/";
+    // {{{:filepath.ext}}}
+    // iterate until no more triple-curly-bracket expressions in $sql
     do {
         if ($repeat++ > $loop_limit) {
             throw new Exception(__FUNCTION__ . ' repeat limit reached, check params for circular references');
         }
-        $preg = preg_match_all($pattern, $sql . ' ', $matches);
-        if ($preg !== 0 and $preg !== false) {
-            // loop over matches
-            foreach ($matches[1] as $key => $val) {
-                $contents = '';
-                if (file_exists($val)) {
-                    $contents = file_get_contents($val);
+        $subs = 0;
+        foreach ($bind as $key => $val) {
+            if (   substr($key, 0, 4) == '{{{:'
+                && strpos($sql, $key) > -1
+            ) {
+                $filename = $val;
+                if (file_exists($filename)) {
+                    $contents = file_get_contents($filename);
+                } else {
+                    $contents = '';
+                    trigger_error('Unable to locate ' . getcwd() . '/' . $filename);
                 }
-                $sql = str_replace('{{{:'.$val.'}}}', $contents, $sql);
+                $sql = str_replace($key, $contents, $sql);
+                $subs++;
             }
         }
-    } while ($preg !== 0 and $preg !== false);
+    } while ($subs > 0);
 
     // Phase 2:  Bind structural params
-    $pattern = "/{{:[A-Za-z][A-Za-z0-9_]*}}/";
+    // '{{:placeholder}}' => 'replacement string'
     // straight string substitution, don't add anything to $ord_bind_list
     // reset repeat count
     $repeat = 0;
@@ -77,24 +83,19 @@ function sql_ebind($sql, array $bind = array(), $bind_marker = '?') {
         if ($repeat++ > $loop_limit) {
             throw new Exception(__FUNCTION__ . ' repeat limit reached, check params for circular references');
         }
-        $preg = preg_match_all($pattern, $sql . ' ', $matches, PREG_OFFSET_CAPTURE);
-        if ($preg !== 0 and $preg !== false) {
-            // loop over matches
-            foreach ($matches[0] as $key => $val) {
-                $bind_matches[$key] = trim($val[0]);
-            }
-            foreach ($bind_matches as $field) {
-                // if no match, set to empty
-                // allows for empty clauses to be omitted
-                $replaceiwth = empty($bind[$field]) ? '' : $bind[$field];
-                $sql = str_replace($field, $replaceiwth, $sql);
+        $subs = 0;
+        // since we're not tracking positional replacements in this phase, loop over $bind
+        foreach ($bind as $key => $val) {
+            if (substr($key, 0, 3) == '{{:') {
+                $sql = str_replace($key, $val, $sql);
             }
         }
         unset($bind_matches);
-    } while ($preg !== 0 and $preg !== false);
+    } while ($subs > 0);
 
     // Phase 3:  Bind normal params
-    $pattern = "/{:[A-Za-z][A-Za-z0-9_]*}/";
+    // '{:placeholder}' => 'replacement string'
+    $pattern = '/{:[A-Za-z][A-Za-z0-9_]*}/';
     // reset repeat count
     $repeat = 0;
     // iterate until no more single-curly-bracket expressions in $sql
@@ -104,9 +105,11 @@ function sql_ebind($sql, array $bind = array(), $bind_marker = '?') {
         }
         $preg = preg_match_all($pattern, $sql . ' ', $matches, PREG_OFFSET_CAPTURE);
         if ($preg !== 0 and $preg !== false) {
+            // loop over matches, building a simple, ordered array to track replaceable params
             foreach ($matches[0] as $key=>$val) {
                 $bind_matches[$key] = trim($val[0]);
             }
+            // loop over the ordered array
             foreach ($bind_matches as $field) {
                 if (is_array($bind[$field])) {
                     $sql = str_replace($field, implode(', ', array_fill(0, count($bind[$field]), $bind_marker)), $sql);
