@@ -1,11 +1,8 @@
 <?php
-
 /*
- *
  * TODO: needs lots of editing
  * TODO: needs lots of editing
  * TODO: needs lots of editing
- *
  */
 
 require './../src/php/sql_ebind.php';
@@ -15,290 +12,305 @@ require './../src/php/sql_ebind.php';
 // This is a named parameter binding helper for generic SQL written in PHP.  It should be easy to use or customize.
 // 
 // Where this was normal:
-// 
 // $db_res = query("SELECT id, lname, fname FROM people where lname='?'", array('Smith'))
 // 
 // We can use:
-// 
 // $db_res = query("SELECT id, lname, fname FROM people where lname={:name}")
 // 
-// 
-// Example, usage example for simple parameter:
-// 
-$sql = implode(" \n", Array(
-    "SELECT ID, lname, fname",
-    "FROM dbo.table_name_01",
-    "WHERE ID = {:ID_cond}",
-    "AND lname LIKE {:lname_cond}"
-));
 
-$params = Array(
-    '{:lname_cond}' => '%mith',
-    '{:ID_cond}' => '4d7ab00ae2561cbc1a58a1ccbf0192cf',
-);
-$query_bound = sql_ebind($sql, $params);
-// $this->db->query($query_bound['sql'], $query_bound['params']);
-var_dump($query_bound); echo PHP_EOL;
-// ```
-// expect
-// ```php
-$str = <<<'EOS'
-array(2) {
-  'sql' =>
-  string(90) "SELECT ID, lname, fname
-    FROM dbo.table_name_01
-    WHERE ID = ?
-      AND lname LIKE ?"
-  'params' =>
-  array(2) {
-    [0] =>
-    string(32) "4d7ab00ae2561cbc1a58a1ccbf0192cf"
-    [1] =>
-    string(5) "%mith"
-  }
+$json_str = file_get_contents('common/tests.json');
+$tests = json_decode($json_str, true);
+
+foreach($tests['tests'] as $test) {
+    $query_bound = sql_ebind(
+        $test['input']['sql'], 
+        $test['input']['params']
+    );
+    $expected = $test['output'];
+    if ($query_bound['sql'] !== $expected['sql']) {
+        // error in sql statement output
+    }
+    if ($query_bound['params'] !== $expected['params']) {
+        // error in params list
+    }
 }
-EOS;
-// ```
-// 
-// Example for structural parameter:
-// ```php
-$sql = implode(" \n", Array(
-    "SELECT {{:colname_01}}, lname, fname",
-    "FROM dbo.table_name_01",
-    "WHERE ID = {:wherecond_01}",
-    "  AND lname LIKE {:wherecond_02}",
-    "ORDER BY {{:colname_01}}",
-));
 
-$params = Array(
-    '{{:colname_01}}' => 'ID',
-    '{:wherecond_01}' => '4d7ab00ae2561cbc1a58a1ccbf0192cf',
-    '{:wherecond_02}' => '%mith',
-);
-$query_bound = sql_ebind($sql, $params);
-// $this->db->query($query_bound['sql'], $query_bound['params']);
-var_dump($query_bound); echo PHP_EOL;
-// ```
-// expect
-// ```php
-$str = <<<'EOS'
-array(2) {
-  'sql' =>
-  string(100) "SELECT ID, lname, fname
-    FROM dbo.table_name_01
-    WHERE ID = ? AND lname LIKE ?
-    ORDER BY ID"
-  'params' =>
-  array(2) {
-    [0] =>
-    string(32) "4d7ab00ae2561cbc1a58a1ccbf0192cf"
-    [1] =>
-    string(5) "%mith"
-  }
-}
-EOS;
-// ```
-// 
-// Example with the number of parameters unknown ahead of time:
-// ```php
-$sql = implode(" \n", Array(
-    "SELECT {{:field_name}}",
-    "FROM {{:table_name}}",
-    "WHERE {{:field_name}} = {:wherecond_01}",
-    "  OR field_name_02 IN ( {:wherecond_02} )",
-  ));
+// // Example, usage example for simple parameter:
+// // 
+// $sql = implode(" \n", Array(
+//     "SELECT ID, lname, fname",
+//     "FROM dbo.table_name_01",
+//     "WHERE ID = {:ID_cond}",
+//     "AND lname LIKE {:lname_cond}"
+// ));
 
-$params = Array(
-    '{{:field_name}}' => 'ID',
-    '{{:table_name}}' => 'dbo.table_name_01',
-    '{:wherecond_01}' => '4d7ab00ae2561cbc1a58a1ccbf0192cf',
-    '{:wherecond_02}' => Array(3, 5, 7),
-);
-$query_bound = sql_ebind($sql, $params);
-// $this->db->query($query_bound['sql'], $query_bound['params']);
-var_dump($query_bound); echo PHP_EOL;
-// ```
-// Should give"
-// ```php
-$sql = <<<'EOS'
-{
-    "sql":"SELECT ID
-        FROM dbo.table_name_01
-        WHERE ID = ?
-          OR field_name_02 IN ( ?, ?, ? )",
-    "params":["4d7ab00ae2561cbc1a58a1ccbf0192cf",3,5,7]
-}
-EOS;
-// ```
-// 
-// Example for multiple columns:
-// ```php
-$sql = implode(" \n", Array(
-    "SELECT {{:field_names}}",
-    "FROM {{:table_name}}",
-    "WHERE {{:id_field_name}} = {:wherecond_01}",
-));
-$params = Array(
-    '{{:field_names}}' => 'col1, col2, col3',
-    '{{:id_field_name}}' => 'col1',
-    '{{:table_name}}'  => 'dbo.table_name_01',
-    '{:wherecond_01}'  => 1729
-);
-$query_bound = sql_ebind($sql, $params);
-// $this->db->query($query_bound['sql'], $query_bound['params']);
-var_dump($query_bound); echo PHP_EOL;
-// ```
-// 
-// expect
-// ```php
-$sql = <<<'EOS'
-array(2) {
-  'sql' =>
-  string(69) "SELECT col1, col2, col3
-    FROM dbo.table_name_01
-    WHERE col1 = ?"
-  'params' =>
-  array(1) {
-    [0] =>
-    int(1729)
-  }
-}
-EOS;
+// $params = Array(
+//     '{:lname_cond}' => '%mith',
+//     '{:ID_cond}' => '4d7ab00ae2561cbc1a58a1ccbf0192cf',
+// );
+// $query_bound = sql_ebind($sql, $params);
+// // $this->db->query($query_bound['sql'], $query_bound['params']);
+// var_dump($query_bound); echo PHP_EOL;
+// // ```
+// // expect
+// // ```php
+// $str = <<<'EOS'
+// array(2) {
+//   'sql' =>
+//   string(90) "SELECT ID, lname, fname
+//     FROM dbo.table_name_01
+//     WHERE ID = ?
+//       AND lname LIKE ?"
+//   'params' =>
+//   array(2) {
+//     [0] =>
+//     string(32) "4d7ab00ae2561cbc1a58a1ccbf0192cf"
+//     [1] =>
+//     string(5) "%mith"
+//   }
+// }
+// EOS;
+// // ```
+// // 
+// // Example for structural parameter:
+// // ```php
+// $sql = implode(" \n", Array(
+//     "SELECT {{:colname_01}}, lname, fname",
+//     "FROM dbo.table_name_01",
+//     "WHERE ID = {:wherecond_01}",
+//     "  AND lname LIKE {:wherecond_02}",
+//     "ORDER BY {{:colname_01}}",
+// ));
 
-// ```
-// 
-// Example for general SELECT query builder:
-// ```php
-// // note that replacement values contain replacement keys
-// // that get replaced inside a do{} loop
-// build the query
-$sql_select = '{{:GEN_SQL_SELECT}}';
+// $params = Array(
+//     '{{:colname_01}}' => 'ID',
+//     '{:wherecond_01}' => '4d7ab00ae2561cbc1a58a1ccbf0192cf',
+//     '{:wherecond_02}' => '%mith',
+// );
+// $query_bound = sql_ebind($sql, $params);
+// // $this->db->query($query_bound['sql'], $query_bound['params']);
+// var_dump($query_bound); echo PHP_EOL;
+// // ```
+// // expect
+// // ```php
+// $str = <<<'EOS'
+// array(2) {
+//   'sql' =>
+//   string(100) "SELECT ID, lname, fname
+//     FROM dbo.table_name_01
+//     WHERE ID = ? AND lname LIKE ?
+//     ORDER BY ID"
+//   'params' =>
+//   array(2) {
+//     [0] =>
+//     string(32) "4d7ab00ae2561cbc1a58a1ccbf0192cf"
+//     [1] =>
+//     string(5) "%mith"
+//   }
+// }
+// EOS;
+// // ```
+// // 
+// // Example with the number of parameters unknown ahead of time:
+// // ```php
+// $sql = implode(" \n", Array(
+//     "SELECT {{:field_name}}",
+//     "FROM {{:table_name}}",
+//     "WHERE {{:field_name}} = {:wherecond_01}",
+//     "  OR field_name_02 IN ( {:wherecond_02} )",
+//   ));
 
-$gen_sql_select = <<<'EOS'
-{{:WITH_clause}}
-SELECT {{:field_list}}
-{{:FROM_clause}}
-{{:WHERE_clause}}
-{{:GROUPBY_clause}}
-{{:HAVING_clause}}
-{{:ORDERBY_clause}}
-EOS;
+// $params = Array(
+//     '{{:field_name}}' => 'ID',
+//     '{{:table_name}}' => 'dbo.table_name_01',
+//     '{:wherecond_01}' => '4d7ab00ae2561cbc1a58a1ccbf0192cf',
+//     '{:wherecond_02}' => Array(3, 5, 7),
+// );
+// $query_bound = sql_ebind($sql, $params);
+// // $this->db->query($query_bound['sql'], $query_bound['params']);
+// var_dump($query_bound); echo PHP_EOL;
+// // ```
+// // Should give"
+// // ```php
+// $sql = <<<'EOS'
+// {
+//     "sql":"SELECT ID
+//         FROM dbo.table_name_01
+//         WHERE ID = ?
+//           OR field_name_02 IN ( ?, ?, ? )",
+//     "params":["4d7ab00ae2561cbc1a58a1ccbf0192cf",3,5,7]
+// }
+// EOS;
+// // ```
+// // 
+// // Example for multiple columns:
+// // ```php
+// $sql = implode(" \n", Array(
+//     "SELECT {{:field_names}}",
+//     "FROM {{:table_name}}",
+//     "WHERE {{:id_field_name}} = {:wherecond_01}",
+// ));
+// $params = Array(
+//     '{{:field_names}}' => 'col1, col2, col3',
+//     '{{:id_field_name}}' => 'col1',
+//     '{{:table_name}}'  => 'dbo.table_name_01',
+//     '{:wherecond_01}'  => 1729
+// );
+// $query_bound = sql_ebind($sql, $params);
+// // $this->db->query($query_bound['sql'], $query_bound['params']);
+// var_dump($query_bound); echo PHP_EOL;
+// // ```
+// // 
+// // expect
+// // ```php
+// $sql = <<<'EOS'
+// array(2) {
+//   'sql' =>
+//   string(69) "SELECT col1, col2, col3
+//     FROM dbo.table_name_01
+//     WHERE col1 = ?"
+//   'params' =>
+//   array(1) {
+//     [0] =>
+//     int(1729)
+//   }
+// }
+// EOS;
 
-$sql_params = Array(
-    '{{:GEN_SQL_SELECT}}'      => $gen_sql_select,
-    '{{:WITH_clause}}'         => '',
-    '{{:FROM_clause}}'         => 'FROM {{:table_source}}',
-    '{{:WHERE_clause}}'        => 'WHERE {{:wsearch_condition}}',
-    '{{:GROUPBY_clause}}'      => '',
-    '{{:HAVING_clause}}'       => '',
-    '{{:ORDERBY_clause}}'      => 'ORDER BY {{:order_expression}}',
-    '{{:field_list}}'          => '*',
-    '{{:table_source}}'        => 'dbo.{{:table_name}}',
-    '{{:wsearch_condition}}'   => '{{:id_col}} = {:ID}',
-    '{{:group_by_expression}}' => '',
-    '{{:hsearch_condition}}'   => '',
-    '{{:order_expression}}'    => '{{:id_col}}',
-);
+// // ```
+// // 
+// // Example for general SELECT query builder:
+// // ```php
+// // // note that replacement values contain replacement keys
+// // // that get replaced inside a do{} loop
+// // build the query
+// $sql_select = '{{:GEN_SQL_SELECT}}';
 
-// add some more params
-$sql_params['{{:table_name}}'] = 'Account';
-$sql_params['{{:id_col}}'] = 'ID';
+// $gen_sql_select = <<<'EOS'
+// {{:WITH_clause}}
+// SELECT {{:field_list}}
+// {{:FROM_clause}}
+// {{:WHERE_clause}}
+// {{:GROUPBY_clause}}
+// {{:HAVING_clause}}
+// {{:ORDERBY_clause}}
+// EOS;
 
-// fill in the actual ID being sought
-$sql_params['{:ID}'] = 9876;
+// $sql_params = Array(
+//     '{{:GEN_SQL_SELECT}}'      => $gen_sql_select,
+//     '{{:WITH_clause}}'         => '',
+//     '{{:FROM_clause}}'         => 'FROM {{:table_source}}',
+//     '{{:WHERE_clause}}'        => 'WHERE {{:wsearch_condition}}',
+//     '{{:GROUPBY_clause}}'      => '',
+//     '{{:HAVING_clause}}'       => '',
+//     '{{:ORDERBY_clause}}'      => 'ORDER BY {{:order_expression}}',
+//     '{{:field_list}}'          => '*',
+//     '{{:table_source}}'        => 'dbo.{{:table_name}}',
+//     '{{:wsearch_condition}}'   => '{{:id_col}} = {:ID}',
+//     '{{:group_by_expression}}' => '',
+//     '{{:hsearch_condition}}'   => '',
+//     '{{:order_expression}}'    => '{{:id_col}}',
+// );
 
-// bind names
-$query_bound = sql_ebind($sql_select, $sql_params);
-$query_bound['sql'] = trim($query_bound['sql']);
-// $this->db->query($query_bound['sql'], $query_bound['params']);
-var_dump($query_bound); echo PHP_EOL;
-// ```
-// 
-// expect
-// ```php
-$sql = <<<'EOS'
-array(2) {
-  'sql' =>
-  string(58) "SELECT * FROM dbo.Account WHERE ID = ? ORDER BY ID"
-  'params' =>
-  array(1) {
-    [0] =>
-    int(9)
-  }
-}
-EOS;
+// // add some more params
+// $sql_params['{{:table_name}}'] = 'Account';
+// $sql_params['{{:id_col}}'] = 'ID';
 
+// // fill in the actual ID being sought
+// $sql_params['{:ID}'] = 9876;
 
-$sql_select = '{{{:INCLUDE_GEN_SQL_SELECT}}}';
-
-$sql_params['{{{:INCLUDE_GEN_SQL_SELECT}}}'] = 'php/includefile.sql';
-
-// print_r($sql_params); echo PHP_EOL; exit;
-
-// bind names
-$query_bound = sql_ebind($sql_select, $sql_params);
-$query_bound['sql'] = trim($query_bound['sql']);
-// $this->db->query($query_bound['sql'], $query_bound['params']);
-var_dump($query_bound); echo PHP_EOL;
-
-// ```
-// 
-// Use the same parameters for a delete statement
-// ```php
-$sql_delete = 'DELETE {{:field_list}} ';
-// prepend WITH
-if (!@empty($sql_params['{{:with_statement}}']))
-    $sql_delete = 'WITH {{:with_statement}} ' . $sql_delete;
-if (!@empty($sql_params['{{:table_top}}']))
-    $sql_delete .= 'TOP {{:table_top}} ';
-if (!@empty($sql_params['{{:table_source}}']))
-    $sql_delete .= 'FROM {{:table_source}} ';
-if (!@empty($sql_params['{{:wsearch_condition}}']))
-    $sql_delete .= 'WHERE {{:wsearch_condition}} ';
-
-// bind names
-$query_bound = sql_ebind($sql_delete, $sql_params);
-// $this->db->query($query_bound['sql'], $query_bound['params']);
-var_dump($query_bound); echo PHP_EOL;
-// ```
-// 
-// expect
-// ```php
-$sql = <<<'EOS'
-array(2) {
-  'sql' =>
-  string(58) "DELETE * FROM dbo.Account WHERE ID = ?"
-  'params' =>
-  array(1) {
-    [0] =>
-    int(9)
-  }
-}
-EOS;
-// ```
-// 
-
-// add a set_list and use it in an update statement
-$sql_params['{{:set_list}}'] = 'something or other';
-
-$sql_update = 'UPDATE ';
-if (!@empty($sql_params['{{:table_alias}}']))
-    $sql_update .= ' {{:table_alias}} ';
-// prepend WITH clause
-if (!@empty($sql_params['{{:with_statement}}']))
-    $sql_update = 'WITH {{:with_statement}} ' . $sql_update;
-if (!@empty($sql_params['{{:table_top}}']))
-    $sql_update .= 'TOP {{:table_top}} ';
-if (!@empty($sql_params['{{:set_list}}']))
-    $sql_update .= 'SET {{:set_list}} ';
-if (!@empty($sql_params['{{:wsearch_condition}}']))
-    $sql_update .= 'WHERE {{:wsearch_condition}} ';
+// // bind names
+// $query_bound = sql_ebind($sql_select, $sql_params);
+// $query_bound['sql'] = trim($query_bound['sql']);
+// // $this->db->query($query_bound['sql'], $query_bound['params']);
+// var_dump($query_bound); echo PHP_EOL;
+// // ```
+// // 
+// // expect
+// // ```php
+// $sql = <<<'EOS'
+// array(2) {
+//   'sql' =>
+//   string(58) "SELECT * FROM dbo.Account WHERE ID = ? ORDER BY ID"
+//   'params' =>
+//   array(1) {
+//     [0] =>
+//     int(9)
+//   }
+// }
+// EOS;
 
 
-// bind names
-$query_bound = sql_ebind($sql_delete, $sql_params);
-// $this->db->query($query_bound['sql'], $query_bound['params']);
-var_dump($query_bound); echo PHP_EOL;
+// $sql_select = '{{{:INCLUDE_GEN_SQL_SELECT}}}';
+
+// $sql_params['{{{:INCLUDE_GEN_SQL_SELECT}}}'] = 'php/includefile.sql';
+
+// // print_r($sql_params); echo PHP_EOL; exit;
+
+// // bind names
+// $query_bound = sql_ebind($sql_select, $sql_params);
+// $query_bound['sql'] = trim($query_bound['sql']);
+// // $this->db->query($query_bound['sql'], $query_bound['params']);
+// var_dump($query_bound); echo PHP_EOL;
+
+// // ```
+// // 
+// // Use the same parameters for a delete statement
+// // ```php
+// $sql_delete = 'DELETE {{:field_list}} ';
+// // prepend WITH
+// if (!@empty($sql_params['{{:with_statement}}']))
+//     $sql_delete = 'WITH {{:with_statement}} ' . $sql_delete;
+// if (!@empty($sql_params['{{:table_top}}']))
+//     $sql_delete .= 'TOP {{:table_top}} ';
+// if (!@empty($sql_params['{{:table_source}}']))
+//     $sql_delete .= 'FROM {{:table_source}} ';
+// if (!@empty($sql_params['{{:wsearch_condition}}']))
+//     $sql_delete .= 'WHERE {{:wsearch_condition}} ';
+
+// // bind names
+// $query_bound = sql_ebind($sql_delete, $sql_params);
+// // $this->db->query($query_bound['sql'], $query_bound['params']);
+// var_dump($query_bound); echo PHP_EOL;
+// // ```
+// // 
+// // expect
+// // ```php
+// $sql = <<<'EOS'
+// array(2) {
+//   'sql' =>
+//   string(58) "DELETE * FROM dbo.Account WHERE ID = ?"
+//   'params' =>
+//   array(1) {
+//     [0] =>
+//     int(9)
+//   }
+// }
+// EOS;
+// // ```
+// // 
+
+// // add a set_list and use it in an update statement
+// $sql_params['{{:set_list}}'] = 'something or other';
+
+// $sql_update = 'UPDATE ';
+// if (!@empty($sql_params['{{:table_alias}}']))
+//     $sql_update .= ' {{:table_alias}} ';
+// // prepend WITH clause
+// if (!@empty($sql_params['{{:with_statement}}']))
+//     $sql_update = 'WITH {{:with_statement}} ' . $sql_update;
+// if (!@empty($sql_params['{{:table_top}}']))
+//     $sql_update .= 'TOP {{:table_top}} ';
+// if (!@empty($sql_params['{{:set_list}}']))
+//     $sql_update .= 'SET {{:set_list}} ';
+// if (!@empty($sql_params['{{:wsearch_condition}}']))
+//     $sql_update .= 'WHERE {{:wsearch_condition}} ';
+
+
+// // bind names
+// $query_bound = sql_ebind($sql_delete, $sql_params);
+// // $this->db->query($query_bound['sql'], $query_bound['params']);
+// var_dump($query_bound); echo PHP_EOL;
 
 // 
 // Example of a function to remove schema in TSQL:
@@ -387,8 +399,3 @@ function schema_remove($db, $schema, $t = false) {
 
     return ($affected > 0);
 }
-
-// $success = schema_remove('db_handle_stub', 'dbo_new', true);
-
-// ```
-

@@ -1,34 +1,7 @@
 <?php
 /* sql_ebind
  *
- * Enhanced name binding for SQL queries
- *
- * A normal parameter is that kind of thing that has a placeholder of '?'
- *
- * Adapted heavily from https://stackoverflow.com/a/11594332/7307768
- *
- * These placeholders must have ordinal positional correspondence with an
- * array of values to substibute for each '?'.  One-to-one correspondence
- * and in the exact order.
- *
- * This makes query maintenance painful and error-prone when doing things
- * like shifting clauses and adding conditions.
- *
- * By using named parameters, the order can be rearranged without breaking
- * the association, we gain flexibility and shed the ordinal correspondence
- * requirement at the expanse of having to name the parameters.  These
- * params are delimited with curly braces.  {:normal_param_name}
- *
- * Another feature was added.  Normally we can't have table or column names
- * be replaceable.  This function allows that flexibility by delimiting
- * those params with doubled curly braces. {{:abnormal_param_name}}
- *
- * Finally, there's the capability of 'including' the contents of another 
- * file.  {{{:filename}}}
- *
- * This new capability shouldn't introduce new exposure to SQL injection
- * since statements still have to make it through quoting and prepare
- * mechanisms.
+ * see sql_ebind doc on GitHub
  *
  * @param string $sql The sql query with params to be bound
  * @param Array  $bind  Assoc array of params to bind
@@ -37,38 +10,55 @@
  * @return Array(string sql with names replaced, array of normal params)
  */
 function sql_ebind($sql, array $bind = array(), $bind_marker = '?') {
-
     // to hold $pattern matches
     $bind_matches = null;
     // to hold ordered list of replacements
-    $ord_bind_list = Array();
+    $ord_bind_list = array();
     // limit to catch endless replacement loops
-    $loop_limit = 1000;
+    $loop_limit = 100;
 
     // prevend endless replacement
     $repeat = 0;
+    $repeat_msg = __FUNCTION__ . ' repeat limit reached, check params for circular references in Phase ';
+
+    // loop over $bind once to gather hashes for phases
+    $phase1 = array();
+    $phase2 = array();
+    $phase3 = array();
+    foreach ($bind as $key => $val) {
+        if (substr($key, 0, 4) == '{{{:') { // filename
+            $phase1[$key] = $val;
+        }
+        else if (substr($key, 0, 3) == '{{:') {  // structural param
+            $phase2[$key] = $val;
+        }
+        else if (substr($key, 0, 2) == '{:') {  // normal param
+            $phase3[$key] = $val;
+        }
+        // else there's junk in $bind
+    }
 
     // Phase 1:  inline replace from file(s)
     // {{{:filepath.ext}}}
     // iterate until no more triple-curly-bracket expressions in $sql
-		$subs = 0;
     do {
         if ($repeat++ > $loop_limit) {
-            throw new Exception(__FUNCTION__ . ' repeat limit reached, check params for circular references');
+            throw new Exception($repeat_msg . 1);
         }
         $subs = 0;
-        foreach ($bind as $key => $val) {
-            if (   substr($key, 0, 4) == '{{{:'  // $key is a filename
-                && strpos($sql, $key) > -1       // $key is in $sql
-            ) {
-                $filename = $val;
-                if (file_exists($filename)) {
-                    $contents = file_get_contents($filename);
-                } else {
-                    $contents = '';
-                    trigger_error('Unable to locate ' . getcwd() . '/' . $filename);
-                }
-                $sql = str_replace($key, $contents, $sql);
+        foreach ($phase1 as $key => $val) {
+            // skip if $key not found in $sql
+            if (strpos($sql, $key) === -1) continue;
+            $filename = $val;
+            if (file_exists($filename)) {
+                $contents = file_get_contents($filename);
+            } else {
+                $contents = '';
+                trigger_error('Unable to locate ' . getcwd() . '/' . $filename);
+            }
+            $sql_p = str_replace($key, $contents, $sql);
+            if ($sql_p != $sql) {
+                $sql = $sql_p;
                 $subs++;
             }
         }
@@ -82,15 +72,16 @@ function sql_ebind($sql, array $bind = array(), $bind_marker = '?') {
     // iterate until no more double-curly-bracket expressions in $sql
     do {
         if ($repeat++ > $loop_limit) {
-            throw new Exception(__FUNCTION__ . ' repeat limit reached, check params for circular references');
+            throw new Exception($repeat_msg . 2);
         }
         $subs = 0;
-        // since we're not tracking positional replacements in this phase, loop over $bind
-        foreach ($bind as $key => $val) {
-            if (   substr($key, 0, 3) == '{{:'  // $key is a structural param
-                && strpos($sql, $key) > -1      // $key is in $sql
-            ) {
-                $sql = str_replace($key, $val, $sql);
+        // since we're not tracking positional replacements in this phase, loop over $phase2
+        foreach ($phase2 as $key => $val) {
+            if (strpos($sql, $key) === -1) continue;
+            $sql_p = str_replace($key, $val, $sql);
+            if ($sql_p != $sql) {
+                $sql = $sql_p;
+                $subs++;
             }
         }
     } while ($subs > 0);
@@ -103,7 +94,7 @@ function sql_ebind($sql, array $bind = array(), $bind_marker = '?') {
     // iterate until no more single-curly-bracket expressions in $sql
     do {
         if ($repeat++ > $loop_limit) {
-            throw new YETIException(__FUNCTION__ . ' repeat limit reached, check params for circular references');
+            throw new Exception($repeat_msg . 3);
         }
         $preg = preg_match_all($pattern, $sql . ' ', $matches, PREG_OFFSET_CAPTURE);
         if ($preg !== 0 and $preg !== false) {
@@ -112,13 +103,15 @@ function sql_ebind($sql, array $bind = array(), $bind_marker = '?') {
                 $bind_matches[$key] = trim($val[0]);
             }
             // loop over the ordered array
-            foreach ($bind_matches as $field) {
-                if (is_array($bind[$field])) {
-                    $sql = str_replace($field, implode(', ', array_fill(0, count($bind[$field]), $bind_marker)), $sql);
-                    $ord_bind_list = array_merge($ord_bind_list, $bind[$field]);
+            foreach ($bind_matches as $key) {
+                $val = $phase3[$key];
+                if (is_array($val)) {
+                    // special handling of arrays, turn them into comma-separated list
+                    $sql = str_replace($key, implode(', ', array_fill(0, count($val), $bind_marker)), $sql);
+                    $ord_bind_list = array_merge($ord_bind_list, $val);
                 } else {
-                    $sql = str_replace($field, $bind_marker, $sql);
-                    $ord_bind_list[] = $bind[$field];
+                    $sql = str_replace($key, $bind_marker, $sql);
+                    $ord_bind_list[] = $val;
                 }
             }
         }

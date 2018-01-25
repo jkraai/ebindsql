@@ -2,6 +2,8 @@
  *
  * Enhanced name binding for SQL queries implemented in js
  *
+ * see sql_ebind doc on GitHub
+ *
  * @param string $sql The sql query with params to be bound
  * @param Array	$bind	Assoc array of params to bind
  * @param string $bind_marker what to use
@@ -10,9 +12,10 @@
  */
 function sql_ebind(sql, bind, bind_marker) {
 	'use strict';
+
 	// handle default values
-	bind = typeof bind !== 'undefined' ? bind : [];
-	bind_marker = typeof bind_marker !== 'undefined' ? bind_marker : '?';
+	bind = (typeof bind !== 'undefined') ? bind : [];
+	bind_marker = (typeof bind_marker !== 'undefined') ? bind_marker : '?';
 
 	// to hold $pattern matches
 	var bind_matches = [];
@@ -24,12 +27,33 @@ function sql_ebind(sql, bind, bind_marker) {
 	// Bind abnormal params
 	// straight string substitution, don't add anything to $ord_bind_list
 	var pattern;
-	var replacewith = '';
 
 	// prevend endless replacement
 	var repeat = 0;
 	var i;
 	var matches, matches_length, field;
+
+	var val, subs;
+
+	// loop over $bind once to gather hashes for phases
+	var phase1 = [];
+	var phase2 = [];
+	var phase3 = [];
+	for (var key in bind) {
+		if (typeof bind[key] !== 'function')  // key is an object
+			continue;
+    val = bind[key];
+    if (key.substring(0, 4) == '{{{:') { // filename
+      phase1[key] = val;
+    }
+    else if (key.substring(0, 3) == '{{:') {  // structural param
+      phase2[key] = val;
+    }
+      else if (key.substring(0, 2) == '{:') {  // normal param
+        phase3[key] = val;
+      }
+    // else there's junk in $bind
+    }
 
 	// Phase 1:	inline replace from file
 	// Bind included files
@@ -39,16 +63,14 @@ function sql_ebind(sql, bind, bind_marker) {
 		if (repeat++ > loop_limit) {
 			throw arguments.callee.name + ' repeat limit reached, check params for circular references';
 		}
-		for (var key in bind) {
-			if ( typeof bind[key] !== 'function' // key is not an object
-				&& key.substr(0, 4) == '{{{:'      // key is a filename
-				&& strpos($sql, $key) > -1         // key is in sql
-			) {
+		for (var key in phase1) {
+			val = phase1[key];
+			if (typeof val !== 'function') {
 				// here's where hand-waving occurs
-				// server-side will have options
-				// client-sice will have options
+				// server-side will have its way
+				// client-side will have its way
 				replacewith = somehow get file contents;
-				sql = sql.replace(bind_matches[i], bind[bind_matches[i]]);
+				sql = sql.replace(bind_matches[i], phase1[bind_matches[i]]);
 				subs++;
 		}
 	} while (subs > 0)
@@ -61,15 +83,16 @@ function sql_ebind(sql, bind, bind_marker) {
 		if (repeat++ > loop_limit) {
 			throw arguments.callee.name + ' repeat limit reached, check params for circular references';
 		}
-		for (var key in bind) {
-			if ( typeof bind[key] !== 'function'  // key is not an object
-				&& key.substr(0, 3) == '{{:'        // key is a strucural param
-				&& strpos($sql, key) > -1           // key is in sql
+		for (key in phase2) {
+			val = phase2[key];
+			if ( typeof val !== 'function'  // key is not an object
+				&& sql.indexOf(key) > -1   // key is in sql
 			) {
 				sql = sql.replace(key, bind[key]);
 				subs++;
+			}
 		}
-	} while (subs > 0)
+	} while (subs > 0);
 
 	// Phase 3:	Bind normal params
 	pattern = new RegExp("{:[A-Za-z][A-Za-z0-9_]*}");
@@ -105,7 +128,7 @@ function sql_ebind(sql, bind, bind_marker) {
 				}
 			}
 		}
-	} while (matches_length > 0)
+	} while (matches_length > 0);
 
 	return {'sql': sql, 'params': ord_bind_list};
 }

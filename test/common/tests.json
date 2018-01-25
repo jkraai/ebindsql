@@ -1,0 +1,177 @@
+{
+  "name": "esql_bind",
+  "description": "esql_bind examples & tests",
+  "tests": [
+    {
+      "description": "usage example for simple parameter",
+      "input": {
+        "sql": "SELECT ID, lname, fname,\nFROM dbo.table_name_01,\nWHERE ID = {:ID_cond},\nAND lname LIKE {:lname_cond}",
+        "params": {
+          "{:lname_cond}": "%mith",
+          "{:ID_cond}": "4d7ab00ae2561cbc1a58a1ccbf0192cf"
+        }
+      },
+      "output": {
+        "sql": "SELECT ID, lname, fname\nFROM dbo.table_name_01\nWHERE ID = ?\nAND lname LIKE ?",
+        "params": [
+          "4d7ab00ae2561cbc1a58a1ccbf0192cf",
+          "%mith"
+        ]
+      }
+    },
+    {
+      "description": "structural parameter",
+      "input": {
+        "sql": "SELECT {{:colname_01}}, lname, fname\nFROM dbo.table_name_01\nWHERE ID = {:wherecond_01}\n  AND lname LIKE {:wherecond_02}\nORDER BY {{:colname_01}}",
+        "params": {
+          "{{:colname_01}}": "ID",
+          "{:wherecond_01}": "4d7ab00ae2561cbc1a58a1ccbf0192cf",
+          "{:wherecond_02}": "%mith"
+        }
+      },
+      "output": {
+        "sql": "SELECT ID, lname, fname\nFROM dbo.table_name_01\nWHERE ID = ? AND lname LIKE ?\nORDER BY ID",
+        "params": [
+          "4d7ab00ae2561cbc1a58a1ccbf0192cf",
+          "%mith"
+        ]
+      }
+    },
+    {
+      "description": "an array.  number of parameters unknown ahead of time",
+      "input": {
+        "sql": "SELECT {{:field_name}}\nFROM {{:table_name}}\nWHERE {{:field_name}} = {:wherecond_01}\n  OR field_name_02 IN ( {:wherecond_02} )",
+        "params": {
+          "{{:field_name}}": "ID",
+          "{{:table_name}}": "dbo.table_name_01",
+          "{:wherecond_01}": "4d7ab00ae2561cbc1a58a1ccbf0192cf",
+          "{:wherecond_02}": [
+            3,
+            5,
+            7
+          ]
+        }
+      },
+      "output": {
+        "sql": "SELECT ID\nFROM dbo.table_name_01\nWHERE ID = ?\n\tOR field_name_02 IN ( ?, ?, ? )",
+        "params": [
+          "4d7ab00ae2561cbc1a58a1ccbf0192cf",
+          3,
+          5,
+          7
+        ]
+      }
+    },
+    {
+      "description": "multiple columns",
+      "input": {
+        "sql": "SELECT {{:field_names}}\nFROM {{:table_name}}\nWHERE {{:id_field_name}} = {:wherecond_01}",
+        "params": {
+          "{{:field_names}}": "col1, col2, col3",
+          "{{:id_field_name}}": "col1",
+          "{{:table_name}}": "dbo.table_name_01",
+          "{:wherecond_01}": 1729
+        }
+      },
+      "output": {
+        "sql": "SELECT col1, col2, col3\n\tFROM dbo.table_name_01\n\tWHERE col1 = ?",
+        "params": [
+          1729
+        ]
+      }
+    },
+    {
+      "description": "general SELECT query builder.  note that replacement values contain replacement keys that get replaced inside a do{} loop",
+      "input": {
+        "sql": "{{:WITH_clause}}\nSELECT {{:field_list}}\n{{:FROM_clause}}\n{{:WHERE_clause}}\n{{:GROUPBY_clause}}\n{{:HAVING_clause}}\n{{:ORDERBY_clause}}",
+        "params": {
+          "{{:GEN_SQL_SELECT}}": "{{:GEN_SQL_SELECT}}",
+          "{{:WITH_clause}}": "",
+          "{{:FROM_clause}}": "FROM {{:table_source}}",
+          "{{:WHERE_clause}}": "WHERE {{:wsearch_condition}}",
+          "{{:GROUPBY_clause}}": "",
+          "{{:HAVING_clause}}": "",
+          "{{:ORDERBY_clause}}": "ORDER BY {{:order_expression}}",
+          "{{:field_list}}": "*",
+          "{{:table_source}}": "dbo.{{:table_name}}",
+          "{{:wsearch_condition}}": "{{:id_col}} = {:ID}",
+          "{{:group_by_expression}}": "",
+          "{{:hsearch_condition}}": "",
+          "{{:order_expression}}": "{{:id_col}}",
+          "{{:table_name}}": "Account",
+          "{{:id_col}}": "ID",
+          "{:ID}": 9876
+        }
+      },
+      "output": {
+        "sql": "SELECT * FROM dbo.Account WHERE ID = ? ORDER BY ID",
+        "params": [
+          9
+        ]
+      }
+    },
+    {
+      "description": "Use the same parameters for an UPDATE statement",
+      "input": {
+        "sql": "{{:with_statement}}\nUPDATE {{:table_top}}\n{{:table_source}}\n{{:set_list}}\n{{:wsearch_condition}}",
+        "params": {
+          "{{:WITH_clause}}": "",
+          "{{:FROM_clause}}": "FROM {{:table_source}}",
+          "{{:WHERE_clause}}": "WHERE {{:wsearch_condition}}",
+          "{{:GROUPBY_clause}}": "",
+          "{{:HAVING_clause}}": "",
+          "{{:ORDERBY_clause}}": "ORDER BY {{:order_expression}}",
+          "{{:table_top}}": "",
+          "{{:field_list}}": "*",
+          "{{:set_list}}": "SET something='something else'",
+          "{{:table_source}}": "dbo.{{:table_name}}",
+          "{{:wsearch_condition}}": "{{:id_col}} = {:ID}",
+          "{{:group_by_expression}}": "",
+          "{{:hsearch_condition}}": "",
+          "{{:order_expression}}": "{{:id_col}}",
+          "{{:table_name}}": "Account",
+          "{{:id_col}}": "ID",
+          "{:ID}": 9876
+        }
+      },
+      "output": {
+        "sql": "UPDATE dbo.Account\nSET something='something else'\nWHERE ID = ?",
+        "params": [
+          "???"
+        ]
+      }
+    },
+    {
+      "description": "Use the same parameters for an UPDATE statement",
+      "input": {
+        "sql": "{{:with_statement}}\nDELETE {{:field_list}}\n{{:table_top}}\n{{:table_source}}\n{{:wsearch_condition}}",
+        "params": {
+          "{{{:INCLUDE_GEN_SQL_SELECT}}}": "common/includefile.sql",
+          "{{:GEN_SQL_SELECT}}": "{{:GEN_SQL_SELECT}}",
+          "{{:WITH_clause}}": "",
+          "{{:FROM_clause}}": "FROM {{:table_source}}",
+          "{{:WHERE_clause}}": "WHERE {{:wsearch_condition}}",
+          "{{:GROUPBY_clause}}": "",
+          "{{:HAVING_clause}}": "",
+          "{{:ORDERBY_clause}}": "ORDER BY {{:order_expression}}",
+          "{{:table_top}}": "",
+          "{{:field_list}}": "*",
+          "{{:table_source}}": "dbo.{{:table_name}}",
+          "{{:wsearch_condition}}": "{{:id_col}} = {:ID}",
+          "{{:group_by_expression}}": "",
+          "{{:hsearch_condition}}": "",
+          "{{:order_expression}}": "{{:id_col}}",
+          "{{:table_name}}": "Account",
+          "{{:id_col}}": "ID",
+          "{:ID}": 9876
+        }
+      },
+      "output": {
+        "sql": "DELETE * FROM dbo.Account WHERE ID = ?",
+        "params": [
+          9
+        ]
+      }
+    }
+  ]
+}

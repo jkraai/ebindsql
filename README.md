@@ -240,8 +240,6 @@ array(2) {
 
 ## Same as previous with contents of a file
 ```php
-$sql_select = '{{{:GEN_SQL_SELECT}}';
-$sql_params['{{{:GEN_SQL_SELECT}}' => '../sql/general_select.sql';
 /* contents of ../sql/general_select.sql
     {{:WITH_clause}}
     SELECT {{:field_list}}
@@ -251,6 +249,8 @@ $sql_params['{{{:GEN_SQL_SELECT}}' => '../sql/general_select.sql';
     {{:HAVING_clause}}
     {{:ORDERBY_clause}}
 */
+$sql_select = '{{{:GEN_SQL_SELECT}}';
+$sql_params['{{{:GEN_SQL_SELECT}}' => '../sql/general_select.sql';
 // bind names
 $query_bound = sql_ebind($sql, $sql_params);
 print_r($query_bound); echo PHP_EOL;
