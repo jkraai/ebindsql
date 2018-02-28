@@ -10,6 +10,9 @@
  * @return Array(string sql with names replaced, array of normal params)
  */
 function sql_ebind($sql, array $bind = array(), $bind_marker = '?') {
+    // todo:  add support for param to silently replace
+    // silent replacement as default behavior
+
     // to hold $pattern matches
     $bind_matches = null;
     // to hold ordered list of replacements
@@ -64,6 +67,11 @@ function sql_ebind($sql, array $bind = array(), $bind_marker = '?') {
         }
     } while ($subs > 0);
 
+    if (true) {
+        // quietly wipe out remaining {{{:x}}} statements
+        $sql = preg_replace('/{{{:[^}]+}}}/', '', $sql);
+    }
+
     // Phase 2:  Bind structural params
     // '{{:placeholder}}' => 'replacement string'
     // straight string substitution, don't add anything to $ord_bind_list
@@ -86,6 +94,11 @@ function sql_ebind($sql, array $bind = array(), $bind_marker = '?') {
         }
     } while ($subs > 0);
 
+    if (true) {
+        // quietly wipe out remaining {{:x}} statements
+        $sql = preg_replace('/{{:[^}]+}}/', '', $sql);
+    }
+
     // Phase 3:  Bind normal params
     // '{:placeholder}' => 'replacement string'
     $pattern = '/{:[A-Za-z][A-Za-z0-9_]*}/';
@@ -104,8 +117,9 @@ function sql_ebind($sql, array $bind = array(), $bind_marker = '?') {
             }
             // loop over the ordered array
             foreach ($bind_matches as $key) {
-                $val = $phase3[$key];
-                if (is_array($val)) {
+                // fail silently and let the DB complain if something is missing
+                $val = @$phase3[$key];
+                if (is_array($val) && count($val) > -1) {
                     // special handling of arrays, turn them into comma-separated list
                     $sql = str_replace($key, implode(', ', array_fill(0, count($val), $bind_marker)), $sql);
                     $ord_bind_list = array_merge($ord_bind_list, $val);
@@ -116,6 +130,11 @@ function sql_ebind($sql, array $bind = array(), $bind_marker = '?') {
             }
         }
     } while ($preg !== 0 and $preg !== false);
+
+    // trim all-blank lines
+    $sql = preg_replace("/\n\s*\n/", "\n", $sql);
+    // trim outer spaces
+    $sql = trim($sql);
 
     return Array(
         'sql'    => $sql,
