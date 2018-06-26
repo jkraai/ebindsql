@@ -51,8 +51,8 @@ $sql = "SELECT id, lname, fname FROM people where lname='?'";
 We can use:
 ```php
 $sql = sql_ebind(
-    "SELECT id, lname, fname FROM people where", 
-    $params
+    "SELECT id, lname, fname FROM people where lname = {:lname}", 
+    array('{:lname}' => 'Jones')
 );
 ```
 
@@ -96,12 +96,13 @@ array(2) {
 ```php
 $sql = implode(" \n", Array(
     "SELECT {{:colname_01}}, lname, fname",
-    "FROM dbo.table_name_01",
+    "FROM {{:table_name}}",
     "WHERE ID = {:wherecond_01}",
     "  AND lname LIKE {:wherecond_02}",
     "ORDER BY {{:colname_01_PrimaryKey}}",
 ));
 $params = Array(
+    '{{;table_name}}' => 'dbo.table_name_01'.
     '{{:colname_01}}' => 'ID',
     '{{:colname_01_PrimaryKey}}' => '{{:colname_01}}',
     '{:wherecond_01}' => '4d7ab00ae2561cbc1a58a1ccbf0192cf',
@@ -267,6 +268,14 @@ print_r($query_bound); echo PHP_EOL;
 
 ## normal query, with array support
 ```php
+// like we're using the results of a query to do another
+$row = array(
+    'ID'   => '192837465',
+    'col1' => 'val1',
+    'col2' => 'val2',
+    'col3' => 'val3',
+);
+
 $sql = implode(" \n", Array(
     'SELECT {{:cols}}',
     'FROM {{:table}}',
@@ -283,7 +292,7 @@ $params = Array(
     '{:id}'       => $row_id,
 );
 $query_bound = sql_ebind($sql, $params);
-// $this->db->query($query_bound['sql'], $query_bound['params']);
+
 $expected = '{"sql":"SELECT ID, col1, col2, col3 \nFROM dbo.some_table \nWHERE ID = ?","params":["192837465"]}';
 if (json_encode($query_bound) == $expected) { echo "normal query success!\n"; }
 else { echo "normal query failed\n"; };
@@ -309,7 +318,6 @@ $params = Array(
     '{:values }' => array_values($row),
 );
 $query_bound = sql_ebind($sql, $params);
-// $this->db->query($query_bound['sql'], $query_bound['params']);
 
 $expected = '{"sql":"INSERT INTO dbo.some_table ( ID, col1, col2, col3 ) \n  ( ?, ?, ?, ? )","params":["192837465","val1","val2","val3"]}';
 
@@ -319,6 +327,13 @@ else { echo "INSERT failed\n"; };
 
 ## UPDATE with single column key and array support
 ```php
+$row = array(
+    'ID'   => '192837465',
+    'col1' => 'val1',
+    'col2' => 'val2',
+    'col3' => 'val3',
+);
+
 $sql = implode(" \n", Array(
     'UPDATE {{:table}}',
     'SET {:row_kv}',
@@ -339,7 +354,6 @@ $params = Array(
 
 $query_bound = sql_ebind($sql, $params);
 
-// $this->db->query($query_bound['sql'], $query_bound['params']);
 $expected = '{"sql":"UPDATE dbo.some_table \nSET col1=?, col2=?, col3=? \nWHERE ID = ?","params":["val1","val2","val3","192837465"]}';
 
 if (json_encode($query_bound) == $expected) { echo "UPDATE success!\n"; }
@@ -382,8 +396,6 @@ $row = array(
 );
 
 $query_bound = UPDATE_composite_pk('dbo.some_table', array('ID', 'col3'), $row);
-
-// $this->db->query($query_bound['sql'], $query_bound['params']);
 
 $expected = '{"sql":"UPDATE dbo.some_table \nSET ID=?, col1=?, col2=?, col3=? \nWHERE ID = ? AND col3 = ?","params":["192837465","val1","val2","val3","192837465","val3"]}';
 
@@ -452,8 +464,6 @@ $row = array(
 );
 
 $query_bound = UPSERT('dbo.some_table', array('ID'), $row);
-
-// $this->db->query($query_bound['sql'], $query_bound['params']);
 
 $expected = '{"sql":"IF (NOT EXISTS( \n  SELECT * FROM dbo.some_table WHERE ID = ? ) \n) \nBEGIN \n  INSERT INTO dbo.some_table ( ID, col1, col2, col3 ) \n  VALUES( ?, ?, ?, ? ) \nEND \nELSE \nBEGIN \n  UPDATE dbo.some_table \n  SET ID=?, col1=?, col2=?, col3=? \n  WHERE ID = ? \nEND","params":["192837465","192837465","val1","val2","val3","192837465","val1","val2","val3","192837465"]}';
 
