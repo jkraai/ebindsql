@@ -9,45 +9,51 @@ The examples are Transact SQL, but the code will work out-of-the-box for other S
 This technique could be used out-of-the-box for many kinds of non-SQL code generation.
 
 ## The problems to be solved are:
-* when preparing SQL statements for execution, the ```?``` placeholders must have ordinal positional correspondence with a passed array of values to substitute for each ```?```.  One-to-one correspondence and in the exact order
+* when preparing SQL statements for execution, the ```?``` placeholders must have ordinal positional correspondence with a passed array of values to substitute for each ```?```.  In other words, one-to-one correspondence and in the exact order
 * ```?``` placeholders can only stand in for values, not column or table names
 * traditional implementations are simple and flat and are expressively and functionally limiting
 
 The first makes query maintenance tedious and error-prone when doing even the simplest refactoring, including shifting clauses and adding or removing conditions.
 
-By using named parameters, the order can be rearranged without breaking the association, flexibility is gained and the ordinal correspondence requirement is shed at the expanse of having to name the parameters.  These params are delimited with curly braces.  ```{:normal_param_name}```  (The ```{:``` was kept as a nod to older systems.)  Case sensitive identifiers follow a convention of a letter followed by any number of letters, numbers, ```-``` dash, and ```_``` underscore.
+By using named parameters, the order can be rearranged without breaking the association, flexibility is gained and the ordinal correspondence requirement is shed at the expanse of having to name the parameters.  These params are delimited with  brackets, here called braces.  ```{:normal_param_name}```  (The ```{:``` was chosen as a nod to older systems.)  Case sensitive identifiers follow a convention of a letter followed by any number of letters, numbers, ```-``` dash, and ```_``` underscore.
 
-## New capabilities have been added. 
-*  Normally a statement to be prepared can't have database, schema, table, or column names be replaceable.  This allows that flexibility by delimiting those params with double curly braces. {{:abnormal_param_name}}
+## New capabilities have been added 
+*  Normally a statement to be prepared can't have database, schema, table, or column names be replaceable.  This allows that flexibility by delimiting those params with double braces. ```{{:abnormal_param_name}}```
 *  Substitution loops are put inside while loops that repeat until no further replacements have been made.
 
-Runaway behavior resulting from circular substitutions are caught with a loop counter.  It's cheaper in lines of code, readability, and maintenance than generating and validating a digraph.  Anyone who wishes to fork and digraph is most welcome to do so!  I could probably learn good things from reading the code.
+Runaway behavior resulting from circular substitutions are caught with a loop counter.  It's cheaper in lines of code, readability, and maintenability than generating and validating a digraph to find loops.
 
-These new capabilities don't introduce new exposures to SQL injection attacks as the generated statements still have to successfully make it through prepare mechanisms.
+These new capabilities don't introduce new exposures to SQL injection attacks as the generated statements still have to successfully make it through existing mechanisms.
 
-Advanced users who find this technique too limiting should look into tools like a macro processor, writing a little language, or creating the next big language.
+Advanced users who find this technique too limiting should look into tools like a macro processor, writing a little language, or creating their own big language.
 
 ## How it Works
 The function operates in three phases:
 
-* Phase 2:  Double-curly-braced strings are replaced with strings passed in a mapping
-* Phase 3:  Single-curly-braced strings are replaced with SQL parameter placeholders
-* Phase 1:  Triple-curly-braced strings are replaced with contents of files
+* Phase 1:  Triple-braced key strings are replaced with contents of files named in the value string
+* Phase 2:  Double-braced key strings are replaced with value strings and can contain double- or single-braced strings or with literal strings
+* Phase 3:  Single-braced key strings are replaced with SQL parameter placeholders and can contain single-braced strings or literal strings
+
+## Phase order matters
+Phases are done in order, so putting a triple-braced filename value into a double-braced key won't work.  Likewise, putting a double-braced value into a single-braced key won't work.
 
 ## What Feels Kinda Klunky
 The function returns a structure with two parts:
 * a SQL string
-* an array or list of 
+* an array or list of replaced parameters
 
 # Documentation by Example
 ## A simple substitution
 Where this was normal
 ```php
-prepare("SELECT id, lname, fname FROM people where lname='?'")
+$sql = "SELECT id, lname, fname FROM people where lname='?'";
 ```
 We can use:
 ```php
-prepare("SELECT id, lname, fname FROM people where lname={:name}")
+$sql = sql_ebind(
+    "SELECT id, lname, fname FROM people where", 
+    $params
+);
 ```
 
 ## Usage for simple parameters
@@ -63,7 +69,9 @@ $params = Array(
     '{:lname_cond}' => '%mith',
     '{:ID_cond}' => '4d7ab00ae2561cbc1a58a1ccbf0192cf',
 );
+
 $query_bound = sql_ebind($sql, $params);
+
 print_r($query_bound); echo PHP_EOL;
 ```
 will give 
@@ -84,7 +92,7 @@ array(2) {
 }
 ```
 
-## Structural parameter and replacement looping:
+## Structural parameter and replacement looping
 ```php
 $sql = implode(" \n", Array(
     "SELECT {{:colname_01}}, lname, fname",
@@ -99,8 +107,9 @@ $params = Array(
     '{:wherecond_01}' => '4d7ab00ae2561cbc1a58a1ccbf0192cf',
     '{:wherecond_02}' => '%mith',
 );
-$query_bound = sql_ebind($sql, $params);
-print_r($query_bound); echo PHP_EOL;
+list($query, $query_params) = sql_ebind($sql, $params);
+print_r("query:  " . $query        . PHP_EOL;
+print_r("params: " . $query_params . PHP_EOL;
 ```
 will give 
 ```
@@ -124,12 +133,12 @@ In the above example, note ```{{:colname_01_PrimaryKey}} -> {{:colname_01}} -> '
 
 ## Number of parameters unknown ahead of time
 ```php
-$sql = implode(" \n", Array(
-    "SELECT {{:field_name}}",
-    "FROM {{:table_name}}",
-    "WHERE {{:field_name}} = {:wherecond_01}",
-    "  OR field_name_02 IN ( {:wherecond_02} )",
-  ));
+$sql = <<< EOQ
+SELECT {{:field_name}}
+FROM {{:table_name}}
+WHERE {{:field_name}} = {:wherecond_01}
+  OR field_name_02 IN ( {:wherecond_02} )
+EOQ;
 
 $params = Array(
     '{{:field_name}}' => 'ID',
@@ -140,7 +149,7 @@ $params = Array(
 $query_bound = sql_ebind($sql, $params);
 print_r($query_bound); echo PHP_EOL;
 ```
-will give:
+will give
 ```
 {
     "sql":"SELECT ID
@@ -168,7 +177,7 @@ $params = Array(
 $query_bound = sql_ebind($sql, $params);
 print_r($query_bound); echo PHP_EOL;
 ```
-will give:
+will give
 ```
 array(2) {
   'sql' =>
@@ -184,7 +193,7 @@ array(2) {
 }
 ```
 
-## General SELECT query builder
+## Over General SELECT query builder
 ```php
 $sql_select = '{{:GEN_SQL_SELECT}}';
 
@@ -225,7 +234,7 @@ $sql_params['{:ID}'] = 9;
 $query_bound = sql_ebind($sql, $sql_params);
 print_r($query_bound); echo PHP_EOL;
 ```
-will give:
+will give
 ```
 array(2) {
   'sql' =>
@@ -256,9 +265,205 @@ $query_bound = sql_ebind($sql, $sql_params);
 print_r($query_bound); echo PHP_EOL;
 ```
 
-## Function to remove schema in TSQL:
+## normal query, with array support
 ```php
-/*
+$sql = implode(" \n", Array(
+    'SELECT {{:cols}}',
+    'FROM {{:table}}',
+    'WHERE {{:id_col}} = {:id}'
+));
+
+// get the ID to update
+$row_id = $row['ID'];
+
+$params = Array(
+    '{{:cols}}'   => array_keys($row),
+    '{{:table}}'  => 'dbo.some_table',
+    '{{:id_col}}' => 'ID',
+    '{:id}'       => $row_id,
+);
+$query_bound = sql_ebind($sql, $params);
+// $this->db->query($query_bound['sql'], $query_bound['params']);
+$expected = '{"sql":"SELECT ID, col1, col2, col3 \nFROM dbo.some_table \nWHERE ID = ?","params":["192837465"]}';
+if (json_encode($query_bound) == $expected) { echo "normal query success!\n"; }
+else { echo "normal query failed\n"; };
+```
+
+## Another INSERT, with array support
+```php
+$row = array(
+    'ID'   => '192837465',
+    'col1' => 'val1',
+    'col2' => 'val2',
+    'col3' => 'val3',
+);
+
+$sql = implode(" \n", Array(
+    'INSERT INTO {{:table}} ( {{:cols}} )',
+    '  ( {:values} )',
+));
+
+$params = Array(
+    '{{:table}}' => 'dbo.some_table',
+    '{{:cols}}'  => array_keys($row),
+    '{:values }' => array_values($row),
+);
+$query_bound = sql_ebind($sql, $params);
+// $this->db->query($query_bound['sql'], $query_bound['params']);
+
+$expected = '{"sql":"INSERT INTO dbo.some_table ( ID, col1, col2, col3 ) \n  ( ?, ?, ?, ? )","params":["192837465","val1","val2","val3"]}';
+
+if (json_encode($query_bound) == $expected) { echo "INSERT success!\n"; }
+else { echo "INSERT failed\n"; };
+```
+
+## UPDATE with single column key and array support
+```php
+$sql = implode(" \n", Array(
+    'UPDATE {{:table}}',
+    'SET {:row_kv}',
+    'WHERE {{:id_col}} = {:id}'
+));
+
+// get the ID to update
+$row_id = $row['ID'];
+// but don't try to overwrite the primary key
+unset($row['ID']);
+
+$params = Array(
+    '{{:table}}'  => 'dbo.some_table',
+    '{:row_kv}'   => $row,
+    '{{:id_col}}' => 'ID',
+    '{:id}'       => $row_id,
+);
+
+$query_bound = sql_ebind($sql, $params);
+
+// $this->db->query($query_bound['sql'], $query_bound['params']);
+$expected = '{"sql":"UPDATE dbo.some_table \nSET col1=?, col2=?, col3=? \nWHERE ID = ?","params":["val1","val2","val3","192837465"]}';
+
+if (json_encode($query_bound) == $expected) { echo "UPDATE success!\n"; }
+else { echo "UPDATE failed\n"; };
+```
+
+## UPDATE with composite primary key and array support
+```php
+function UPDATE_composite_pk($table_name, $pk_cols, $row) {
+
+    $sql = implode(" \n", array(
+        'UPDATE {{:table}}',
+        'SET {:set_clause}',
+        'WHERE {{:pk_where}}',
+    ));
+
+    $params = array(
+        '{{:table}}'        => $table_name,
+        '{:row_new_values}' => array_values($row),
+        '{:set_clause}'     => $row,
+    );
+
+    // build and add {{:pk_where}} to $params
+    $pk_where = array();
+    foreach($pk_cols as $pk_col) {
+        $pk_where[] = "$pk_col = {:pk_$pk_col}";
+        $params["{:pk_$pk_col}"] = $row[$pk_col];
+    }
+    $pk_where = implode(' AND ', $pk_where);
+    $params['{{:pk_where}}'] = $pk_where;
+
+    return sql_ebind($sql, $params);
+}
+
+$row = array(
+    'ID'   => '192837465',
+    'col1' => 'val1',
+    'col2' => 'val2',
+    'col3' => 'val3',
+);
+
+$query_bound = UPDATE_composite_pk('dbo.some_table', array('ID', 'col3'), $row);
+
+// $this->db->query($query_bound['sql'], $query_bound['params']);
+
+$expected = '{"sql":"UPDATE dbo.some_table \nSET ID=?, col1=?, col2=?, col3=? \nWHERE ID = ? AND col3 = ?","params":["192837465","val1","val2","val3","192837465","val3"]}';
+
+if (json_encode($query_bound) == $expected) { echo "UPDATE composite pk success!\n"; }
+else { echo "UPDATE composite pk failed\n"; };
+```
+
+## generic tsql UPSERT, as an extension of UPDATE_composite_pk
+```php
+/**
+ * UPSERT
+ *
+ * returns an insert-or-updae string of sql and corresponding parameters 
+ * suitable for passing to server prepare routine
+ *
+ * calculated primary keys not supported
+ *
+ * @param string $table_name MSSQL DB resource handle
+ * @param array  $pk_cols    array of names of columns that comprise the table's primary key
+ * @param array  $row        assoc array of colname => value pairs
+ *
+ * @return array(sql, array(positional parameters))
+ */
+function UPSERT($table_name, $pk_cols, $row) {
+
+    $sql = implode(" \n", array(
+        'IF (NOT EXISTS(',
+        '  SELECT * FROM {{:table}} WHERE {{:pk_where}} )',
+        ')',
+        'BEGIN',
+        '  INSERT INTO {{:table}} ( {{:table_columns}} )',
+        '  VALUES( {:row_new_values} )',
+        'END',
+        'ELSE',
+        'BEGIN',
+        '  UPDATE {{:table}}',
+        '  SET {:set_clause}',
+        '  WHERE {{:pk_where}}',
+        'END',
+    ));
+
+    $params = array(
+        '{{:table}}'         => $table_name,
+        '{{:table_columns}}' => array_keys($row),
+        '{:row_new_values}'  => array_values($row),
+        '{:set_clause}'      => $row,
+    );
+
+    // build and add {{:pk_where}} to $params
+    $pk_where = array();
+    foreach($pk_cols as $pk_col) {
+        $pk_where[] = "$pk_col = {:pk_$pk_col}";
+        $params["{:pk_$pk_col}"] = $row[$pk_col];
+    }
+    $pk_where = implode(' AND ', $pk_where);
+    $params['{{:pk_where}}'] = $pk_where;
+
+    return sql_ebind($sql, $params);
+}
+
+$row = array(
+    'ID'   => '192837465',
+    'col1' => 'val1',
+    'col2' => 'val2',
+    'col3' => 'val3',
+);
+
+$query_bound = UPSERT('dbo.some_table', array('ID'), $row);
+
+// $this->db->query($query_bound['sql'], $query_bound['params']);
+
+$expected = '{"sql":"IF (NOT EXISTS( \n  SELECT * FROM dbo.some_table WHERE ID = ? ) \n) \nBEGIN \n  INSERT INTO dbo.some_table ( ID, col1, col2, col3 ) \n  VALUES( ?, ?, ?, ? ) \nEND \nELSE \nBEGIN \n  UPDATE dbo.some_table \n  SET ID=?, col1=?, col2=?, col3=? \n  WHERE ID = ? \nEND","params":["192837465","192837465","val1","val2","val3","192837465","val1","val2","val3","192837465"]}';
+
+if (json_encode($query_bound) == $expected) { echo "UPSERT success!\n"; }
+else { echo "UPSERT failed\n"; };
+```
+
+## Function to remove entire schema in TSQL:
+```php
+/**
  * drop_schema
  *
  * NOT FULLY TESTED.  Please let author know how this bold function 
@@ -349,7 +554,7 @@ function schema_remove($db, $schema, $t = false) {
 $success = schema_remove('db_handle_stub', 'dbo_new', true);
 ```
 
-# TODO:  Need contributor examples:
+# TODO:  Concise contributor examples are welcome!
 * Easy
     * JOINs
     * subselects
@@ -359,3 +564,4 @@ $success = schema_remove('db_handle_stub', 'dbo_new', true);
     * bad data hunter
     * a table->CRUD generator
     * relational model->CRUD generator
+    * "whadda we need!?"  "yet another 'lightweight' ORM!!!"  right?   hello?  anyone still here?

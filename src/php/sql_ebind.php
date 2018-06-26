@@ -1,21 +1,46 @@
 <?php
-/* sql_ebind
- *
- * see sql_ebind doc on GitHub
- *
- * @param string $sql The sql query with params to be bound
- * @param Array  $bind  Assoc array of params to bind
- * @param string $bind_marker what to use
- *
- * @return Array(string sql with names replaced, array of normal params)
- */
-function sql_ebind($sql, array $bind = array(), $bind_marker = '?') {
-    // todo:  add support for param to silently replace
+ /**
+  * sql_ebind
+  *
+  * generic SQL enhanced named parameter binding
+  *
+  * Phase 1: Triple-curly-braced strings are replaced with contents of files
+  *   like PHP's include()
+  *   filename
+  *   file can contain phase 1, phase 2, and phase 3 parts
+  *
+  * Phase 2: Double-curly-braced strings are replaced with strings passed in a mapping
+  *   for DDL structural parts, like table or column names
+  *   for things that '?' can't be used for
+  *   value can contain double- and single-curly braced values
+  *   value can contain phase 2 and phase 3 parts
+  *   value can contain either
+  *     atomic strings to stand for DB, schema, or table names
+  *     arrays which get implod[ed](', ') for lists of, say, column names
+  *
+  * Phase 3: Single-curly-braced strings are replaced with SQL 'positional parameters'
+  *   for atomic strings, dates, and numbers
+  *   for regular ?-style sql replaceable parameters
+  *   value can contain either
+  *     atomic things like strings and ints
+  *     arrays which get handled with " IN ( '?', '?', '?')
+  *     associative arrays which get handled as key/value pairs for UPDATEs
+  *
+  * @param string $sql  The sql query with params to be bound
+  * @param Array  $bind Assoc array of params to bind
+  *
+  * @return Array(string sql with names replaced, array of normal params)
+  */
+function sql_ebind($sql, array $bind = array()) {
+    // TODO:  add support for param to silently replace
     // silent replacement as default behavior
+
+    // positional parameter character
+    $positional_parameter = '?';
 
     // to hold $pattern matches
     $bind_matches = null;
-    // to hold ordered list of replacements
+    // to hold ordinal (ordered) list of replacements
     $ord_bind_list = array();
     // limit to catch endless replacement loops
     $loop_limit = 100;
@@ -25,8 +50,8 @@ function sql_ebind($sql, array $bind = array(), $bind_marker = '?') {
     $repeat_msg = __FUNCTION__ . ' repeat limit reached, check params for circular references in Phase ';
 
     // loop over $bind once to gather hashes for phases
-    $phase1 = array();
-    $phase2 = array();
+    $phase1 = array();                                                                                                                              
+    $phase2 = array();                                                                                                                              
     $phase3 = array();
     foreach ($bind as $key => $val) {
         if (substr($key, 0, 4) == '{{{:') { // filename
@@ -86,7 +111,15 @@ function sql_ebind($sql, array $bind = array(), $bind_marker = '?') {
         // since we're not tracking positional replacements in this phase, loop over $phase2
         foreach ($phase2 as $key => $val) {
             if (strpos($sql, $key) === -1) continue;
-            $sql_p = str_replace($key, $val, $sql);
+            // add special handling if $val is array
+            if (is_array($val) && count($val) > -1) {
+                // special handling of arrays, implode(', ')
+                $sql_p = str_replace($key, implode(', ', $val), $sql);
+            }
+            else {
+                // simple string
+                $sql_p = str_replace($key, $val, $sql);
+            }
             if ($sql_p != $sql) {
                 $sql = $sql_p;
                 $subs++;
@@ -119,12 +152,27 @@ function sql_ebind($sql, array $bind = array(), $bind_marker = '?') {
             foreach ($bind_matches as $key) {
                 // fail silently and let the DB complain if something is missing
                 $val = @$phase3[$key];
-                if (is_array($val) && count($val) > -1) {
+
+                if ( is_array($val) && @array_keys($val) !== range(0, count($val) - 1) ) {
+
+                    // special handling of assoc arrays
+                    // associative array, join up $k => $v into key = 'val'
+                    // "implode" & trim up
+                    $join = $val;
+                    array_walk($join, function (&$i, $k) {
+                        return $i = "$k=?, ";
+                    });
+                    $join = trim(rtrim(implode($join, ""), ', '));
+                    // add to $sql & ord_bind_list
+                    $sql = str_replace($key, $join, $sql);
+                    $ord_bind_list = array_merge($ord_bind_list, array_values($val));
+                }
+                else if (is_array($val) && count($val) > -1) {
                     // special handling of arrays, turn them into comma-separated list
-                    $sql = str_replace($key, implode(', ', array_fill(0, count($val), $bind_marker)), $sql);
+                    $sql = str_replace($key, implode(', ', array_fill(0, count($val), $positional_parameter)), $sql);
                     $ord_bind_list = array_merge($ord_bind_list, $val);
                 } else {
-                    $sql = str_replace($key, $bind_marker, $sql);
+                    $sql = str_replace($key, $positional_parameter, $sql);
                     $ord_bind_list[] = $val;
                 }
             }
@@ -141,3 +189,4 @@ function sql_ebind($sql, array $bind = array(), $bind_marker = '?') {
         'params' => $ord_bind_list
     );
 }
+
