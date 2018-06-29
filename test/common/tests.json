@@ -172,6 +172,97 @@
           9
         ]
       }
+    },
+    {
+      "description": "Phase 2 array support--columns list",
+      "input": {
+        "sql": "SELECT {{:cols}} FROM {{:table}} WHERE {{:id_col}} = {:id}",
+        "params": {
+          "{{:cols}}": "array_keys(array('ID' => '192837465','col1' => 'val1','col2' => 'val2','col3' => 'val3');",
+          "{{:table}}": "dbo.some_table",
+          "{{:id_col}}": "ID",
+          "{:id}": "192837465",
+        }
+      },
+      "output": {
+        "sql": "SELECT ID, col1, col2, col3 FROM dbo.some_table WHERE ID = ?",
+        "params": [
+          "192837465"
+        ]
+      }
+    },
+    {
+      "description": "Use the same parameters for an UPDATE statement",
+      "input": {
+        "sql": "{{:with_statement}}\nDELETE {{:field_list}}\n{{:table_top}}\n{{:table_source}}\n{{:wsearch_condition}}",
+        "params": {
+          "{{{:INCLUDE_GEN_SQL_SELECT}}}": "common/includefile.sql",
+          "{{:GEN_SQL_SELECT}}": "{{:GEN_SQL_SELECT}}",
+          "{{:WITH_clause}}": "",
+          "{{:FROM_clause}}": "FROM {{:table_source}}",
+          "{{:WHERE_clause}}": "WHERE {{:wsearch_condition}}",
+          "{{:GROUPBY_clause}}": "",
+          "{{:HAVING_clause}}": "",
+          "{{:ORDERBY_clause}}": "ORDER BY {{:order_expression}}",
+          "{{:table_top}}": "",
+          "{{:field_list}}": "*",
+          "{{:table_source}}": "dbo.{{:table_name}}",
+          "{{:wsearch_condition}}": "{{:id_col}} = {:ID}",
+          "{{:group_by_expression}}": "",
+          "{{:hsearch_condition}}": "",
+          "{{:order_expression}}": "{{:id_col}}",
+          "{{:table_name}}": "Account",
+          "{{:id_col}}": "ID",
+          "{:ID}": 9876
+        }
+      },
+      "output": {
+        "sql": "DELETE * FROM dbo.Account WHERE ID = ?",
+        "params": [
+          9
+        ]
+      }
+    },
+    {
+      "description": "Phase 1 array support--columns list & values",
+      "input": {
+        "sql": "INSERT INTO {{:table}} ( {{:cols}} )' ( {:values} )",
+        "params": {
+          "{{:table}}": "dbo.some_table",
+          "{{:cols}}" : "array_keys(array('ID'   => '192837465', 'col1' => 'val1', 'col2' => 'val2', 'col3' => 'val3'))",
+          "{:values }": "array_vals(array('ID'   => '192837465', 'col1' => 'val1', 'col2' => 'val2', 'col3' => 'val3'))"
+        }
+      },
+      "output": {
+        "sql": "INSERT INTO dbo.some_table ( ID, col1, col2, col3 ) ( ?, ?, ?, ? )",
+        "params": [
+          "192837465",
+          "val1",
+          "val2",
+          "val3"
+        ]
+      }
+    },
+    {
+      "description": "Phase 1 associative array support--variable INSERT",
+      "input": {
+        "sql": "UPDATE {{:table}} SET {:row_kv} WHERE {{:id_col}} = {:id}",
+        "params": {
+          "{{:table}}":  "dbo.some_table",
+          "{:row_kv}":   "array('ID' => '192837465', 'col1' => 'val1', 'col2' => 'val2', 'col3' => 'val13')",
+          "{{:id_col}}": "ID",
+          "{:id}":       "192837465",
+        }
+      },
+      "output": {
+        "sql": "INSERT INTO dbo.some_table ( ID, col1, col2, col3 ) ( ?, ?, ?, ? )",
+        "params": [
+          "192837465",
+          "val1",
+          "val2",
+          "val3"
+        ]
+      }
     }
   ]
 }
