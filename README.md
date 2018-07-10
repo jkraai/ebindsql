@@ -62,7 +62,7 @@ $sql = implode(" \n", Array(
     "SELECT ID, lname, fname",
     "FROM dbo.table_name_01",
     "WHERE ID = {:ID_cond}",
-    "AND lname LIKE {:lname_cond}"
+    "  AND lname LIKE {:lname_cond}"
 ));
 
 $params = Array(
@@ -70,9 +70,9 @@ $params = Array(
     '{:ID_cond}' => '4d7ab00ae2561cbc1a58a1ccbf0192cf',
 );
 
-$query_bound = sql_ebind($sql, $params);
+$bound = sql_ebind($sql, $params);
 
-print_r($query_bound); echo PHP_EOL;
+var_dump($bound); echo PHP_EOL;
 ```
 will give 
 ```
@@ -92,6 +92,42 @@ array(2) {
 }
 ```
 
+## Simple Replacement Macros & Readability
+```php
+// Which is more readable?
+$sql = implode(" \n", Array(
+    "SELECT CAST(YEAR(CreatedDate) AS VARCHAR(4)) + '-' + RIGHT('00' + CAST(MONTH(CreatedDate) AS VARCHAR(2)), 2) AS YYYYMM, COUNT(*) AS KOUNT",
+    "FROM dbo.Accounts",
+    "GROUP BY CAST(YEAR(CreatedDate) AS VARCHAR(4)) + '-' + RIGHT('00' + CAST(MONTH(CreatedDate) AS VARCHAR(2)), 2)",
+));
+
+// or
+
+$sql = implode(" \n", Array(
+    "SELECT {{:YYYYMM}} AS YYYYMM, COUNT(*) AS KOUNT",
+    "FROM dbo.Accounts",
+    "GROUP BY {{:YYYYMM}}",
+));
+$params = Array(
+    '{{:YYYYMM}}' => "CAST(YEAR({{:dt_field}}) AS VARCHAR(4)) + '-' + RIGHT('00' + CAST(MONTH({{:dt_field}}) AS VARCHAR(2)), 2)",
+    '{{:dt_field}}' => 'CreatedDate',
+);
+$bound = sql_ebind($sql, $params);
+var_dump($bound);
+```
+will give 
+```
+array(2) {
+  'sql' =>
+  string(268) "SELECT CAST(YEAR(CreatedDate) AS VARCHAR(4)) + '-' + RIGHT('00' + CAST(MONTH(CreatedDate) AS VARCHAR(2)), 2) AS YYYYMM, COUNT(*) AS KOUNT
+  FROM dbo.Accounts
+  GROUP BY CAST(YEAR(CreatedDate) AS VARCHAR(4)) + '-' + RIGHT('00' + CAST(MONTH(CreatedDate) AS VARCHAR(2)), 2)"
+  'params' =>
+  array(0) {
+  }
+}
+```
+
 ## Structural parameter and replacement looping
 ```php
 $sql = implode(" \n", Array(
@@ -102,15 +138,14 @@ $sql = implode(" \n", Array(
     "ORDER BY {{:colname_01_PrimaryKey}}",
 ));
 $params = Array(
-    '{{;table_name}}' => 'dbo.table_name_01'.
+    '{{;table_name}}' => 'dbo.table_name_01',
     '{{:colname_01}}' => 'ID',
     '{{:colname_01_PrimaryKey}}' => '{{:colname_01}}',
     '{:wherecond_01}' => '4d7ab00ae2561cbc1a58a1ccbf0192cf',
     '{:wherecond_02}' => '%mith',
 );
-list($query, $query_params) = sql_ebind($sql, $params);
-print_r("query:  " . $query        . PHP_EOL;
-print_r("params: " . $query_params . PHP_EOL;
+$bound = sql_ebind($sql, $params);
+var_dump($bound); echo PHP_EOL;
 ```
 will give 
 ```
@@ -147,8 +182,8 @@ $params = Array(
     '{:wherecond_01}' => '4d7ab00ae2561cbc1a58a1ccbf0192cf',
     '{:wherecond_02}' => Array(3, 5, 7),
 );
-$query_bound = sql_ebind($sql, $params);
-print_r($query_bound); echo PHP_EOL;
+$bound = sql_ebind($sql, $params);
+var_dump($bound); echo PHP_EOL;
 ```
 will give
 ```
@@ -167,16 +202,16 @@ $sql = implode(" \n", Array(
     "SELECT {{:field_names}}",
     "FROM {{:table_name}}",
     "WHERE {{:id_field_name}} = {:wherecond_01}",
-    "ORDER BY {{:field_names}",
+    "ORDER BY {{:field_names}}",
 ));
 $params = Array(
-    '{{:field_names}}' => 'col1, col2, col3',
+    '{{:field_names}}'   => 'col1, col2, col3',
     '{{:id_field_name}}' => 'col1',
-    '{{:table_name}}'  => 'dbo.table_name_01',
-    '{:wherecond_01}'  => 1729
+    '{{:table_name}}'    => 'dbo.table_name_01',
+    '{:wherecond_01}'    => 1729
 );
-$query_bound = sql_ebind($sql, $params);
-print_r($query_bound); echo PHP_EOL;
+$bound = sql_ebind($sql, $params);
+var_dump($bound); echo PHP_EOL;
 ```
 will give
 ```
@@ -196,7 +231,7 @@ array(2) {
 
 ## Over General SELECT query builder
 ```php
-$sql_select = '{{:GEN_SQL_SELECT}}';
+$sql = '{{:GEN_SQL_SELECT}}';
 
 $gen_sql_select = <<<'EOS'
 {{:WITH_clause}}
@@ -232,8 +267,8 @@ $sql_params['{{:id_col}}'] = 'ID';
 $sql_params['{:ID}'] = 9;
 
 // bind names
-$query_bound = sql_ebind($sql, $sql_params);
-print_r($query_bound); echo PHP_EOL;
+$bound = sql_ebind($sql, $sql_params);
+var_dump($bound); echo PHP_EOL;
 ```
 will give
 ```
@@ -259,11 +294,11 @@ array(2) {
     {{:HAVING_clause}}
     {{:ORDERBY_clause}}
 */
-$sql_select = '{{{:GEN_SQL_SELECT}}';
+$sql = '{{:GEN_SQL_SELECT}}';
 $sql_params['{{{:GEN_SQL_SELECT}}' => '../sql/general_select.sql';
 // bind names
-$query_bound = sql_ebind($sql, $sql_params);
-print_r($query_bound); echo PHP_EOL;
+$bound = sql_ebind($sql, $sql_params);
+var_dump($bound); echo PHP_EOL;
 ```
 
 ## normal query, with array support
@@ -291,10 +326,11 @@ $params = Array(
     '{{:id_col}}' => 'ID',
     '{:id}'       => $row_id,
 );
-$query_bound = sql_ebind($sql, $params);
+$bound = sql_ebind($sql, $params);
+var_dump($bound); echo PHP_EOL;
 
 $expected = '{"sql":"SELECT ID, col1, col2, col3 \nFROM dbo.some_table \nWHERE ID = ?","params":["192837465"]}';
-if (json_encode($query_bound) == $expected) { echo "normal query success!\n"; }
+if (json_encode($bound) == $expected) { echo "normal query success!\n"; }
 else { echo "normal query failed\n"; };
 ```
 
@@ -308,20 +344,22 @@ $row = array(
 );
 
 $sql = implode(" \n", Array(
-    'INSERT INTO {{:table}} ( {{:cols}} )',
+    'INSERT INTO {{:table}}',
+    '  ( {{:cols}} )',
     '  ( {:values} )',
 ));
 
 $params = Array(
     '{{:table}}' => 'dbo.some_table',
     '{{:cols}}'  => array_keys($row),
-    '{:values }' => array_values($row),
+    '{:values}'  => array_values($row),
 );
-$query_bound = sql_ebind($sql, $params);
+$bound = sql_ebind($sql, $params);
+var_dump($bound); echo PHP_EOL;
 
 $expected = '{"sql":"INSERT INTO dbo.some_table ( ID, col1, col2, col3 ) \n  ( ?, ?, ?, ? )","params":["192837465","val1","val2","val3"]}';
 
-if (json_encode($query_bound) == $expected) { echo "INSERT success!\n"; }
+if (json_encode($bound) == $expected) { echo "INSERT success!\n"; }
 else { echo "INSERT failed\n"; };
 ```
 
@@ -352,11 +390,12 @@ $params = Array(
     '{:id}'       => $row_id,
 );
 
-$query_bound = sql_ebind($sql, $params);
+$bound = sql_ebind($sql, $params);
+var_dump($bound); echo PHP_EOL;
 
 $expected = '{"sql":"UPDATE dbo.some_table \nSET col1=?, col2=?, col3=? \nWHERE ID = ?","params":["val1","val2","val3","192837465"]}';
 
-if (json_encode($query_bound) == $expected) { echo "UPDATE success!\n"; }
+if (json_encode($bound) == $expected) { echo "UPDATE success!\n"; }
 else { echo "UPDATE failed\n"; };
 ```
 
@@ -395,15 +434,16 @@ $row = array(
     'col3' => 'val3',
 );
 
-$query_bound = UPDATE_composite_pk('dbo.some_table', array('ID', 'col3'), $row);
+$bound = UPDATE_composite_pk('dbo.some_table', array('ID', 'col3'), $row);
+var_dump($bound); echo PHP_EOL;
 
 $expected = '{"sql":"UPDATE dbo.some_table \nSET ID=?, col1=?, col2=?, col3=? \nWHERE ID = ? AND col3 = ?","params":["192837465","val1","val2","val3","192837465","val3"]}';
 
-if (json_encode($query_bound) == $expected) { echo "UPDATE composite pk success!\n"; }
+if (json_encode($bound) == $expected) { echo "UPDATE composite pk success!\n"; }
 else { echo "UPDATE composite pk failed\n"; };
 ```
 
-## generic tsql UPSERT, as an extension of UPDATE_composite_pk
+## generic t-sql UPSERT, as an extension of UPDATE_composite_pk
 ```php
 /**
  * UPSERT
@@ -463,15 +503,16 @@ $row = array(
     'col3' => 'val3',
 );
 
-$query_bound = UPSERT('dbo.some_table', array('ID'), $row);
+$bound = UPSERT('dbo.some_table', array('ID'), $row);
+var_dump($bound); echo PHP_EOL;
 
 $expected = '{"sql":"IF (NOT EXISTS( \n  SELECT * FROM dbo.some_table WHERE ID = ? ) \n) \nBEGIN \n  INSERT INTO dbo.some_table ( ID, col1, col2, col3 ) \n  VALUES( ?, ?, ?, ? ) \nEND \nELSE \nBEGIN \n  UPDATE dbo.some_table \n  SET ID=?, col1=?, col2=?, col3=? \n  WHERE ID = ? \nEND","params":["192837465","192837465","val1","val2","val3","192837465","val1","val2","val3","192837465"]}';
 
-if (json_encode($query_bound) == $expected) { echo "UPSERT success!\n"; }
+if (json_encode($bound) == $expected) { echo "UPSERT success!\n"; }
 else { echo "UPSERT failed\n"; };
 ```
 
-## Function to remove entire schema in TSQL:
+## Function to remove entire schema in T-SQL:
 ```php
 /**
  * drop_schema
@@ -524,7 +565,7 @@ function schema_remove($db, $schema, $t = false) {
         $bound = sql_ebind($sql, $sql_params);
         $db_res = $db->query($bound['sql'], $bound['params']);
         if ($t) {
-            print_r($bound); echo PHP_EOL;
+            var_dump($bound); echo PHP_EOL;
         }
 
         // DROP 'em
@@ -538,7 +579,7 @@ function schema_remove($db, $schema, $t = false) {
                 )
             );
             if ($t) {
-                print_r($bound); echo PHP_EOL;
+                var_dump($bound); echo PHP_EOL;
             } else {
                 $db_res = $db->query($bound['sql'], $bound['params']);
             }
@@ -551,7 +592,7 @@ function schema_remove($db, $schema, $t = false) {
         Array('{{:schema_name}}' => $schema)
     );
     if ($t) {
-        print_r($bound); echo PHP_EOL;
+        var_dump($bound); echo PHP_EOL;
         $affected = 1;
     } else {
         $db_res = $db->query($bound['sql'], $bound['params']);

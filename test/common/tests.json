@@ -5,7 +5,7 @@
     {
       "description": "usage example for simple parameter",
       "input": {
-        "sql": "SELECT ID, lname, fname,\nFROM dbo.table_name_01,\nWHERE ID = {:ID_cond},\nAND lname LIKE {:lname_cond}",
+        "sql": "SELECT ID, lname, fname\nFROM dbo.table_name_01\nWHERE ID = {:ID_cond}\nAND lname LIKE {:lname_cond}",
         "params": {
           "{:lname_cond}": "%mith",
           "{:ID_cond}": "4d7ab00ae2561cbc1a58a1ccbf0192cf"
@@ -22,7 +22,7 @@
     {
       "description": "structural parameter",
       "input": {
-        "sql": "SELECT {{:colname_01}}, lname, fname\nFROM dbo.table_name_01\nWHERE ID = {:wherecond_01}\n  AND lname LIKE {:wherecond_02}\nORDER BY {{:colname_01}}",
+        "sql": "SELECT {{:colname_01}}, lname, fname\nFROM dbo.table_name_01\nWHERE ID = {:wherecond_01} AND lname LIKE {:wherecond_02}\nORDER BY {{:colname_01}}",
         "params": {
           "{{:colname_01}}": "ID",
           "{:wherecond_01}": "4d7ab00ae2561cbc1a58a1ccbf0192cf",
@@ -53,7 +53,7 @@
         }
       },
       "output": {
-        "sql": "SELECT ID\nFROM dbo.table_name_01\nWHERE ID = ?\n\tOR field_name_02 IN ( ?, ?, ? )",
+        "sql": "SELECT ID\nFROM dbo.table_name_01\nWHERE ID = ?\n  OR field_name_02 IN ( ?, ?, ? )",
         "params": [
           "4d7ab00ae2561cbc1a58a1ccbf0192cf",
           3,
@@ -74,7 +74,7 @@
         }
       },
       "output": {
-        "sql": "SELECT col1, col2, col3\n\tFROM dbo.table_name_01\n\tWHERE col1 = ?",
+        "sql": "SELECT col1, col2, col3\nFROM dbo.table_name_01\nWHERE col1 = ?",
         "params": [
           1729
         ]
@@ -104,16 +104,16 @@
         }
       },
       "output": {
-        "sql": "SELECT * FROM dbo.Account WHERE ID = ? ORDER BY ID",
+        "sql": "SELECT *\nFROM dbo.Account\nWHERE ID = ?\nORDER BY ID",
         "params": [
-          9
+          9876
         ]
       }
     },
     {
       "description": "Use the same parameters for an UPDATE statement",
       "input": {
-        "sql": "{{:with_statement}}\nUPDATE {{:table_top}}\n{{:table_source}}\n{{:set_list}}\n{{:wsearch_condition}}",
+        "sql": "{{:with_statement}}\nUPDATE {{:table_top}}\n{{:table_source}}\n{{:set_list}}\n{{:WHERE_clause}}",
         "params": {
           "{{:WITH_clause}}": "",
           "{{:FROM_clause}}": "FROM {{:table_source}}",
@@ -131,20 +131,20 @@
           "{{:order_expression}}": "{{:id_col}}",
           "{{:table_name}}": "Account",
           "{{:id_col}}": "ID",
-          "{:ID}": 9876
+          "{:ID}": 986
         }
       },
       "output": {
-        "sql": "UPDATE dbo.Account\nSET something='something else'\nWHERE ID = ?",
+        "sql": "UPDATE \ndbo.Account\nSET something='something else'\nWHERE ID = ?",
         "params": [
-          "???"
+          986
         ]
       }
     },
     {
       "description": "Use the same parameters for an UPDATE statement",
       "input": {
-        "sql": "{{:with_statement}}\nDELETE {{:field_list}}\n{{:table_top}}\n{{:table_source}}\n{{:wsearch_condition}}",
+        "sql": "{{:with_statement}}\nDELETE {{:field_list}} {{:FROM_clause}}\n{{:table_top}}\n{{:WHERE_clause}}",
         "params": {
           "{{{:INCLUDE_GEN_SQL_SELECT}}}": "common/includefile.sql",
           "{{:GEN_SQL_SELECT}}": "{{:GEN_SQL_SELECT}}",
@@ -163,13 +163,13 @@
           "{{:order_expression}}": "{{:id_col}}",
           "{{:table_name}}": "Account",
           "{{:id_col}}": "ID",
-          "{:ID}": 9876
+          "{:ID}": 98
         }
       },
       "output": {
-        "sql": "DELETE * FROM dbo.Account WHERE ID = ?",
+        "sql": "DELETE * FROM dbo.Account\nWHERE ID = ?",
         "params": [
-          9
+          98
         ]
       }
     },
@@ -178,10 +178,10 @@
       "input": {
         "sql": "SELECT {{:cols}} FROM {{:table}} WHERE {{:id_col}} = {:id}",
         "params": {
-          "{{:cols}}": "array_keys(array('ID' => '192837465','col1' => 'val1','col2' => 'val2','col3' => 'val3');",
+          "{{:cols}}": ["ID", "col1","col2","col3"],
           "{{:table}}": "dbo.some_table",
           "{{:id_col}}": "ID",
-          "{:id}": "192837465",
+          "{:id}": "192837465"
         }
       },
       "output": {
@@ -194,7 +194,7 @@
     {
       "description": "Use the same parameters for an UPDATE statement",
       "input": {
-        "sql": "{{:with_statement}}\nDELETE {{:field_list}}\n{{:table_top}}\n{{:table_source}}\n{{:wsearch_condition}}",
+        "sql": "{{:with_statement}}\nDELETE {{:field_list}} {{:FROM_clause}}\n{{:table_top}}\n{{:WHERE_clause}}",
         "params": {
           "{{{:INCLUDE_GEN_SQL_SELECT}}}": "common/includefile.sql",
           "{{:GEN_SQL_SELECT}}": "{{:GEN_SQL_SELECT}}",
@@ -213,45 +213,24 @@
           "{{:order_expression}}": "{{:id_col}}",
           "{{:table_name}}": "Account",
           "{{:id_col}}": "ID",
-          "{:ID}": 9876
+          "{:ID}": 87
         }
       },
       "output": {
-        "sql": "DELETE * FROM dbo.Account WHERE ID = ?",
+        "sql": "DELETE * FROM dbo.Account\nWHERE ID = ?",
         "params": [
-          9
+          87
         ]
       }
     },
     {
-      "description": "Phase 1 array support--columns list & values",
+      "description": "Phase 3 array support--columns list & values",
       "input": {
-        "sql": "INSERT INTO {{:table}} ( {{:cols}} )' ( {:values} )",
+        "sql": "INSERT INTO {{:table}} ( {{:cols}} ) ( {:values} )",
         "params": {
           "{{:table}}": "dbo.some_table",
-          "{{:cols}}" : "array_keys(array('ID'   => '192837465', 'col1' => 'val1', 'col2' => 'val2', 'col3' => 'val3'))",
-          "{:values }": "array_vals(array('ID'   => '192837465', 'col1' => 'val1', 'col2' => 'val2', 'col3' => 'val3'))"
-        }
-      },
-      "output": {
-        "sql": "INSERT INTO dbo.some_table ( ID, col1, col2, col3 ) ( ?, ?, ?, ? )",
-        "params": [
-          "192837465",
-          "val1",
-          "val2",
-          "val3"
-        ]
-      }
-    },
-    {
-      "description": "Phase 1 associative array support--variable INSERT",
-      "input": {
-        "sql": "UPDATE {{:table}} SET {:row_kv} WHERE {{:id_col}} = {:id}",
-        "params": {
-          "{{:table}}":  "dbo.some_table",
-          "{:row_kv}":   "array('ID' => '192837465', 'col1' => 'val1', 'col2' => 'val2', 'col3' => 'val13')",
-          "{{:id_col}}": "ID",
-          "{:id}":       "192837465",
+          "{{:cols}}" : ["ID", "col1", "col2", "col3"],
+          "{:values}": ["192837465", "val1", "val2", "val3"]
         }
       },
       "output": {
