@@ -26,60 +26,94 @@
  *     arrays which get handled with " IN ( '?', '?', '?')
  *     associative arrays which get handled as key/value pairs for UPDATEs
  *
+ * consider a more sophisticated strategy a la Crockford's fulfill:
+ *      1.  evaluate the replacement
+ *          if a functional function, and we're supporting lazy evaluation, prep for that
+ *          if it's a function, evaluate the function to get a scalar
+ *          if it's a scalar, use it as-is
+ *      2.  "If an encoder object was provided, call [one] of its functions. If the encoder is a function, call it."
+ *      3.  if it's not a string, cast it to a string
+ *      4.  "If the replacement is a string, then do the substitution, otherwise, leave the symbolic variable in its original state."
+ *
  * @param string $sql  The sql query with params to be bound
  * @param Array  $bind Assoc array of params to bind
  *
  * @return Array(string sql with names replaced, array of normal params)
  */
-function sql_ebind($sql, array $bind = array(), $quietly = true) {
-    // TODO:  add support for param to silently replace
-    // silent replacement as default behavior
-
+function sql_ebind(
+    string $sql,
+    array $bind = [],
+    array $config = []
+) : array {
+    // skip phase 1
+    $skip_phase_1 = true;
     // positional parameter character
     $positional_parameter = '?';
-
+    // whether to quietly replace unreplaced replacements with empty strings
+    $quietly = true;
     // to hold $pattern matches
-    $bind_matches = null;
+    $bind_matches = [];
     // to hold ordinal (ordered) list of replacements
-    $ord_bind_list = array();
+    $ord_bind_list = [];
     // limit to catch endless replacement loops
     $loop_limit = 100;
-
     // prevend endless replacement
     $repeat = 0;
     $repeat_msg = __FUNCTION__ . ' repeat limit reached, check params for circular references in Phase ';
 
-    // Phase 1:  inline replace from file(s)
-    // {{{:filepath.ext}}}
-    // $pattern = '/{{{:[A-Za-z][A-Za-z0-9_/.-]*}}}/';
-    $pattern = '/{{{:[^}]+}}}/';
-    // iterate until no more triple-curly-bracket expressions in $sql
-    do {
-        if ($repeat++ > $loop_limit) { throw new Exception($repeat_msg . 1); }
-        $preg = preg_match_all($pattern, $sql . ' ', $matches);
-        $subs = 0;
-        foreach ($matches[0] as $key) {
-            // skip this match if not found in $bind
-            $val = @$bind[$key];
-            if ($val === NULL) continue;
-
-            $filename = $val;
-            if (file_exists($filename)) {
-                $contents = file_get_contents($filename);
-            } else {
-                $contents = '';
-                trigger_error('Unable to locate ' . getcwd() . '/' . $filename);
-            }
-            $sql_p = str_replace($key, $contents, $sql);
-            if ($sql_p != $sql) {
-                $sql = $sql_p;
-                $subs++;
-            }
+    foreach ($config as $key => $val) {
+        switch ($key) {
+            case 'skip_phase_1':
+                $skip_phase_1 = (bool) $val;
+                break;
+            case 'positional_parameter':
+                $positional_parameter = (string) $val;
+                break;
+            case 'quietly':
+                $quietly = (bool) $val;
+                break;
+            case 'loop_limit':
+                $loop_limit = (int) $val;
+                break;
+            default:
+                trigger_error('Unknown config key ' . $key);
         }
-    } while ($subs > 0);
+    }
 
-    // quietly wipe out remaining {{{:x}}} statements
-    if ($quietly) { $sql = preg_replace('/{{{:[^}]+}}}/', '', $sql); }
+    // Phase 1 is security-wise risky, so skip it by default
+    if (! $skip_phase_1) {
+        // Phase 1:  inline replace from file(s)
+        // {{{:filepath.ext}}}
+        // $pattern = '/{{{:[A-Za-z][A-Za-z0-9_/.-]*}}}/';
+        $pattern = '/{{{:[^}]+}}}/';
+        // iterate until no more triple-curly-bracket expressions in $sql
+        do {
+            if ($repeat++ > $loop_limit) { throw new Exception($repeat_msg . 1); }
+            $preg_match_count = preg_match_all($pattern, $sql . ' ', $matches);
+            $subs = false;
+            foreach ($matches[0] as $key) {
+                // skip this match if not found in $bind
+                $val = $bind[$key] ?? null;
+                if ($val === NULL) continue;
+
+                $filename = $val;
+                if (file_exists($filename)) {
+                    $contents = file_get_contents($filename);
+                } else {
+                    $contents = '';
+                    trigger_error('Unable to locate ' . $filename);
+                }
+                $sql_p = str_replace($key, $contents, $sql);
+                if ($sql_p != $sql) {
+                    $sql = $sql_p;
+                    $subs = true;
+                }
+            }
+        } while ($subs);
+
+        // quietly wipe out remaining {{{:x}}} statements
+        if ($quietly) { $sql = preg_replace($pattern, '', $sql); }
+    }
 
     // Phase 2:  Bind structural params
     // '{{:placeholder}}' => 'replacement string'
@@ -90,33 +124,28 @@ function sql_ebind($sql, array $bind = array(), $quietly = true) {
     // iterate until no more double-curly-bracket expressions in $sql
     do {
         if ($repeat++ > $loop_limit) { throw new Exception($repeat_msg . 2); }
-        $subs = 0;
-        $preg = preg_match_all($pattern, $sql . ' ', $matches);
-        if ($preg !== 0 and $preg !== false) {
+        $subs = false;
+        $preg_match_count = preg_match_all($pattern, $sql . ' ', $matches);
+        if ($preg_match_count !== 0 && $preg_match_count !== false) {
             // loop over matches, building a simple, ordered array to track replaceable params
             foreach ($matches[0] as $key) {
                 // skip this match if not found in $bind
                 $val = @$bind[$key];
                 if ($val === NULL) continue;
                 // special handling if $val is array
-                if (is_array($val) && count($val) > 0) {
-                    // special handling of arrays, implode(', ')
-                    $sql_p = str_replace($key, implode(', ', $val), $sql);
-                }
-                else {
-                    // simple string
-                    $sql_p = str_replace($key, $val, $sql);
-                }
+                $sql_p = is_array($val)
+                    ? str_replace($key, implode(', ', $val), $sql)
+                    : str_replace($key, $val, $sql);
                 if ($sql_p != $sql) {
                     $sql = $sql_p;
-                    $subs++;
+                    $subs = true;
                 }
             }
         }
-    } while ($subs > 0);
+    } while ($subs);
 
     // quietly wipe out remaining {{:x}} statements
-    if ($quietly) { $sql = preg_replace('/{{:[^}]+}}/', '', $sql); }
+    if ($quietly) { $sql = preg_replace($pattern, '', $sql); }
 
     // Phase 3:  Bind normal params
     // '{:placeholder}' => 'replacement string'
@@ -128,8 +157,8 @@ function sql_ebind($sql, array $bind = array(), $quietly = true) {
         if ($repeat++ > $loop_limit) {
             throw new Exception($repeat_msg . 3);
         }
-        $preg = preg_match_all($pattern, $sql . ' ', $matches, PREG_OFFSET_CAPTURE);
-        if ($preg !== 0 and $preg !== false) {
+        $preg_match_count = preg_match_all($pattern, $sql . ' ', $matches, PREG_OFFSET_CAPTURE);
+        if ($preg_match_count !== 0 && $preg_match_count !== false) {
             // loop over matches, building a simple, ordered array to track replaceable params
             foreach ($matches[0] as $key=>$val) {
                 $bind_matches[$key] = trim($val[0]);
@@ -140,19 +169,17 @@ function sql_ebind($sql, array $bind = array(), $quietly = true) {
                 // fail silently and let the DB complain if something is missing
                 $val = @$bind[$key];
 
-                if ( is_array($val) && @array_keys($val) !== range(0, count($val) - 1) ) {
-
+                if (is_array($val) && @array_keys($val) !== range(0, count($val) - 1)) {
                     // special handling of assoc arrays
                     // associative array, join up $k => $v into key = 'val'
                     // "implode" & trim up
                     $join = $val;
-                    array_walk($join, function (&$i, $k) { return $i = "$k=?, "; });
-                    $join = trim(rtrim(implode($join, ""), ', '));
+                    array_walk($join, static fn(&$i, $k) => $i = "{$k}=?, ");
+                    $join = trim(rtrim(implode("", $join), ', '));
                     // add to $sql & ord_bind_list
                     $sql = str_replace($key, $join, $sql);
                     $ord_bind_list = array_merge($ord_bind_list, array_values($val));
-                }
-                else if (is_array($val) && count($val) > -1) {
+                } elseif (is_array($val) && count($val) > -1) {
                     // special handling of arrays, turn them into comma-separated list
                     $sql = str_replace($key, implode(', ', array_fill(0, count($val), $positional_parameter)), $sql);
                     $ord_bind_list = array_merge($ord_bind_list, $val);
@@ -162,7 +189,7 @@ function sql_ebind($sql, array $bind = array(), $quietly = true) {
                 }
             }
         }
-    } while ($preg !== 0 and $preg !== false);
+    } while ($preg_match_count > 0 && $preg_match_count !== false);
 
     // trim all-blank lines
     $sql = preg_replace("/\n\s*\n/", "\n", $sql);

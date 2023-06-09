@@ -1,3 +1,4 @@
 
 *.bak
 *.stackdump
+/src/php/rector/

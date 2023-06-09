@@ -1,6 +1,40 @@
 # eBindSQL
 Enhanced named binding for SQL
 
+```php
+$sql = implode(" \n", [
+    "SELECT {{:YYYYMM}} AS YYYYMM, COUNT(*) AS KOUNT",
+    "FROM {{:table}}",
+    "WHERE {{:dt_field}} >= '{:dt_limit}'",
+    "GROUP BY {{:YYYYMM}}",
+]);
+$params = [
+    '{{:table}}' => 'dbo.Accounts',
+    '{{:dt_field}}' => 'CreatedDate',
+    '{:dt_limit}' => date('Y-m-d', strtotime('-1 years')), // 1 year ago
+    '{{:YYYYMM}}' => "CAST(YEAR({{:dt_field}}) AS VARCHAR(4)) + '-' + RIGHT('00' + CAST(MONTH({{:dt_field}}) AS VARCHAR(2)), 2)",
+];
+$bound1 = sql_ebind($sql, $params);
+echo $bound1['sql'];
+
+$params['{:table}'] = 'dbo.OldAccounts';
+$params['{:dt_field}'] = 'DisabledDate';
+$bound2 = sql_ebind($sql, $params);
+echo $bound2['sql'];
+```
+yields
+```sql
+SELECT CAST(YEAR(CreatedDate) AS VARCHAR(4)) + '-' + RIGHT('00' + CAST(MONTH(CreatedDate) AS VARCHAR(2)), 2) AS YYYYMM, COUNT(*) AS KOUNT
+FROM dbo.Accounts
+WHERE CreatedDate >= '2021-04-01'
+GROUP BY CAST(YEAR(CreatedDate) AS VARCHAR(4)) + '-' + RIGHT('00' + CAST(MONTH(CreatedDate) AS VARCHAR(2)), 2)
+
+SELECT CAST(YEAR(CreatedDate) AS VARCHAR(4)) + '-' + RIGHT('00' + CAST(MONTH(CreatedDate) AS VARCHAR(2)), 2) AS YYYYMM, COUNT(*) AS KOUNT
+FROM dbo.OldAccounts
+WHERE DisabledDate >= '2021-04-01'
+GROUP BY CAST(YEAR(CreatedDate) AS VARCHAR(4)) + '-' + RIGHT('00' + CAST(MONTH(CreatedDate) AS VARCHAR(2)), 2)
+```
+
 # Welcome!
 This is a named parameter binding helper for generic SQL with PHP, js, and Python implementations so far.  The implementation was inspired by a need for https://stackoverflow.com/a/11594332/7307768 in CodeIgniter, and should be easy to use directly or to customize for other needs.
 
@@ -8,39 +42,46 @@ The examples are Transact SQL, but the code will work out-of-the-box for other S
 
 This technique could be used out-of-the-box for many kinds of non-SQL code generation.
 
+To be sure, this is simplistic string interpolation.  This implementation also handles positional replacement strings, so it's specialized for SQL.
+
 ## The problems to be solved are:
-* when preparing SQL statements for execution, the ```?``` placeholders must have ordinal positional correspondence with a passed array of values to substitute for each ```?```.  In other words, one-to-one correspondence and in the exact order
-* ```?``` placeholders can only stand in for values, not column or table names
-* traditional implementations are simple and flat and are expressively and functionally limiting
+| Problem                                                                                                                                                                                                                                            | Solution                                                                                                                                                     |
+|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Few SQL implementations support named parameters.                                                                                                                                                                                                  | 1. This makes it difficult to write SQL that is portable across SQL implementations.<br/>  2. This tool effectively adds that capability.                    |
+| When preparing SQL statements for execution, the ```?``` placeholders must have ordinal positional correspondence with a passed array of values to substitute for each ```?```.  In other words, one-to-one correspondence and in the exact order. | This makes query maintenance tedious and error-prone when doing even the simplest refactoring, including shifting clauses and adding or removing conditions. |
+| Query editing and maintenance is error-prone.                                                                                                                                                                                                      | By using named parameters, the order of columns and clauses can be rearranged without breaking the association.                                              |
 
-The first makes query maintenance tedious and error-prone when doing even the simplest refactoring, including shifting clauses and adding or removing conditions.
 
-By using named parameters, the order can be rearranged without breaking the association, flexibility is gained and the ordinal correspondence requirement is shed at the expanse of having to name the parameters.  These params are delimited with  brackets, here called braces.  ```{:normal_param_name}```  (The ```{:``` was chosen as a nod to older systems.)  Case sensitive identifiers follow a convention of a letter followed by any number of letters, numbers, ```-``` dash, and ```_``` underscore.
+zzz Flexibility is gained and the ordinal correspondence requirement is shed at the expanse of having to name the parameters.  These params are delimited with  brackets, here called braces.  ```{:normal_param_name}```  (The ```{:``` was chosen as a nod to days of yore.)  Case-sensitive identifiers follow a convention of a letter followed by any number of letters, numbers, ```-``` dash, and ```_``` underscore. zzz
 
-## New capabilities have been added 
-*  Normally a statement to be prepared can't have database, schema, table, or column names be replaceable.  This allows that flexibility by delimiting those params with double braces. ```{{:abnormal_param_name}}```
-*  Substitution loops are put inside while loops that repeat until no further replacements have been made.
 
-Runaway behavior resulting from circular substitutions are caught with a loop counter.  It's cheaper in lines of code, readability, and maintenability than generating and validating a digraph to find loops.
-
-These new capabilities don't introduce new exposures to SQL injection attacks as the generated statements still have to successfully make it through existing mechanisms.
+## New capabilities have been added beyond normal SQL parameter string interpolation: 
+* Normally a statement to be prepared can't have database, schema, table, or column names be replaceable.  This allows that flexibility by delimiting those params with double braces. ```{{:abnormal_param_name}}```
+* Substitution loops are put inside while loops that repeat until no further replacements have been made. 
+* Runaway behavior resulting from circular substitutions are caught, eventually, with a loop counter and/or string change detection.  It's cheaper in lines of code, readability, and maintenability than using graph methods to detect loops.
+* These new capabilities don't introduce new exposures to SQL injection attacks as the generated statements still have to successfully make it through existing mechanisms.
 
 Advanced users who find this technique too limiting should look into tools like a macro processor, writing a little language, or creating their own big language.
 
 ## How it Works
 The function operates in three phases:
-
 * Phase 1:  Triple-braced key strings are replaced with contents of files named in the value string
 * Phase 2:  Double-braced key strings are replaced with value strings and can contain double- or single-braced strings or with literal strings
 * Phase 3:  Single-braced key strings are replaced with SQL parameter placeholders and can contain single-braced strings or literal strings
 
-## Phase order matters
-Phases are done in order, so putting a triple-braced filename value into a double-braced key won't work.  Likewise, putting a double-braced value into a single-braced key won't work.
+Phase 1 is just an old-PHP-style, "put the text of that file here."  The file is read and the contents are substituted in place of the key string.  The file name is relative to the current working directory.  This is useful for putting whole clauses, subqueries, etc. into the SQL statement in ways that support reuse.  The process repeats until no substitutions are made.
 
-## What Feels Kinda Klunky
-The function returns a structure with two parts:
+Phase 2 is a simple string substitution.  The key string is replaced with the value string.  The process repeats until no substitutions are made.
+
+Phase 3 is also a simple string substitution, but the key string is replaced with a SQL parameter placeholder.  The key string is also added to an array of parameters that will be passed to the preparable statement.  The process repeats until no substitutions are made.
+
+## Phase order matters
+Phases are done in order, so putting a triple-braced filename value into a double-braced key won't work.  Likewise, putting a double-braced value into a single-braced key probably won't work for generating valid SQL, however the tool can be used to generate templates for itself to consume at a later run.
+
+## What Feels Kinda Klunky is What Makes it Work for SQL
+A vanilla string interpolator won't return the ordered array of parameters that a prepared statement needs.  The function returns a structure with two parts:
 * a SQL string
-* an array or list of replaced parameters
+* an ordered array or list of replaced parameters
 
 # Documentation by Example
 ## A simple substitution
@@ -227,6 +268,82 @@ array(2) {
     int(1729)
   }
 }
+```
+
+
+
+
+
+## make safety checking statements for ad-hoc maintenance
+
+## swap values in a table
+```php
+$params = Array(
+    '{{:id_field_name}}' => 'col1',
+    '{{:table_name}}'    => 'dbo.table_name_01',
+);
+$update = implode(" \n", Array(
+    "UPDATE {{:table_name}}",
+    "SET {{:id_field_name}} = {:val_new}",
+    "WHERE {{:id_field_name}} = {:val_old}",
+));
+$params['{:val_new}'] = '~intermediate~';
+$params['{:val_old}'] = 'A';
+$bound = sql_ebind($update, $params);var_dump($bound); echo PHP_EOL;
+
+$params['{:val_new}'] = 'A';
+$params['{:val_old}'] = 'B';
+$bound = sql_ebind($update, $params);var_dump($bound); echo PHP_EOL;
+
+$params['{:val_new}'] = 'B';
+$params['{:val_old}'] = '~intermediate~';
+$bound = sql_ebind($update, $params);var_dump($bound); echo PHP_EOL;
+
+```
+will give
+```
+array(2) {
+  ["sql"]=>
+  string(54) "UPDATE dbo.table_name_01 
+SET col1 = ? 
+WHERE col1 = ?"
+  ["params"]=>
+  array(2) {
+    [0]=>
+    string(14) "~intermediate~"
+    [1]=>
+    string(1) "A"
+  }
+}
+
+array(2) {
+  ["sql"]=>
+  string(54) "UPDATE dbo.table_name_01 
+SET col1 = ? 
+WHERE col1 = ?"
+  ["params"]=>
+  array(2) {
+    [0]=>
+    string(1) "A"
+    [1]=>
+    string(1) "B"
+  }
+}
+
+array(2) {
+  ["sql"]=>
+  string(54) "UPDATE dbo.table_name_01 
+SET col1 = ? 
+WHERE col1 = ?"
+  ["params"]=>
+  array(2) {
+    [0]=>
+    string(1) "B"
+    [1]=>
+    string(14) "~intermediate~"
+  }
+}
+
 ```
 
 ## Over General SELECT query builder
@@ -512,6 +629,39 @@ if (json_encode($bound) == $expected) { echo "UPSERT success!\n"; }
 else { echo "UPSERT failed\n"; };
 ```
 
+```sql
+$sql = implode(" \n", [
+  "ALTER TABLE {{:foreign_schema}}.{{:foreign_table}}",
+     "ADD CONSTRAINT FK_{{:primary_schema}}-{{:primary_table}}_{{:foreign_schema}}-{{:foreign_table}} FOREIGN KEY (TempID)",
+        "REFERENCES Sales.SalesReason (SalesReasonID)",
+        "{{:on_delete}}",
+        "{{:on_update}}",
+]);
+
+$params = [
+    '{{:primary_schema}}' => 'Sales',
+    '{{:primary_table}}' => 'TempSalesReason',
+    '{{:primary_coldef}}' => 'TempId',
+    '{{:foreign_schema}}' => 'Sales',
+    '{{:foreign_table}}' => 'SalesReason',
+    '{{:foreign_coldef}}' => 'SalesReasonID',
+    '{{:on_delete}}' => 'ON DELETE CASCADE',
+    '{{:on_update}}' => 'ON UPDATE CASCADE',
+];
+
+$bound1 = sql_ebind($sql, $params);
+echo $bound1['sql'];
+
+```
+yields
+```
+ALTER TABLE Sales.SalesReason 
+   ADD CONSTRAINT FK_Sales_TempSalesReason_Sales_SalesReason FOREIGN KEY (TempID) 
+       REFERENCES Sales.SalesReason (SalesReasonID) 
+       ON DELETE CASCADE 
+       ON UPDATE CASCADE
+```
+
 ## Function to remove entire schema in T-SQL:
 ```php
 /**
@@ -612,7 +762,8 @@ $success = schema_remove('db_handle_stub', 'dbo_new', true);
 * Medium
     * given param array, generate SELECT, UPDATE, and DELETE 
 * Bigger
-    * bad data hunter
+    * simple outlying data hunter
+      * ```foreach table { foreach column { show top & bottom ten values } }```
     * a table->CRUD generator
     * relational model->CRUD generator
     * "whadda we need!?"  "yet another 'lightweight' ORM!!!"  right?   hello?  anyone still here?
