@@ -471,7 +471,7 @@ $params = [
 
 $bound = sql_ebind($sql, $params);
 $encoded = json_encode($bound);
-$expected = '{"sql":"ALTER TABLE Sales.SalesReason \n   ADD CONSTRAINT FK_Sales_TempSalesReason_Sales_SalesReason FOREIGN KEY (TempID) \n       REFERENCES Sales.SalesReason (SalesReasonID) \n       ON DELETE CASCADE \n       ON UPDATE CASCADE","params":[]}query failed';
+$expected = '{"sql":"ALTER TABLE Sales.SalesReason \n   ADD CONSTRAINT FK_Sales_TempSalesReason_Sales_SalesReason FOREIGN KEY (TempID) \n       REFERENCES Sales.SalesReason (SalesReasonID) \n       ON DELETE CASCADE \n       ON UPDATE CASCADE","params":[]}';
 if ($encoded == $expected) { echo "query success!\n"; } else { echo "query failed\n"; };
 
 
@@ -501,8 +501,7 @@ $params = [
 
 $bound = sql_ebind($sql, $params);
 $encoded = json_encode($bound);
-echo "$encoded\n"; exit;
-$expected = '{"sql":"ALTER TABLE Sales.SalesReason \n   ADD CONSTRAINT FK_Sales_TempSalesReason_Sales_SalesReason FOREIGN KEY (TempID) \n       REFERENCES Sales.SalesReason (SalesReasonID) \n       ON DELETE CASCADE \n       ON UPDATE CASCADE","params":[]}query failed';
+$expected = '{"sql":"SELECT name, year, month \nFROM ( \n    SELECT name, year, month \n       , ROW_NUMBER() \n           OVER ( \n               PARTITION BY name, year \n               ORDER BY year DESC, month DESC \n           ) AS rn \n    FROM Main \n) t \nWHERE rn <= 2;","params":[]}';
 if ($encoded == $expected) { echo "query success!\n"; } else { echo "query failed\n"; };
 
 
